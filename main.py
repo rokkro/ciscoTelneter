@@ -40,8 +40,6 @@ class TeleCisc:
     def initial_connect(self):
         while not self.host:
             self.host = input("IP or Hostname: ")
-        while not self.username:
-            self.username = input("Username: ")
 
     def ios_fetch_and_store_conf(self):
         if not self.PRIVILEGED:
@@ -69,6 +67,8 @@ class TeleCisc:
                 continue
             ### LOGIN STUFF ###
             if self.IOS_SYNTAX["username"] in line.decode():
+                while not self.username:
+                    self.username = input("Username: ")
                 self.connection.write(self.username.encode('ascii') + b"\n")
                 self.connection.interact()
                 continue
