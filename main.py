@@ -6,6 +6,7 @@ import getpass, socket
 class TeleCisc:
     PORT = 23
     STORE_PASSWD = True
+    READ_TIMEOUT = 3
     PRIVILEGED = "privileged"
     UNPRIVILEGED = "unprivileged"
     IOS_SYNTAX = {
@@ -44,25 +45,29 @@ class TeleCisc:
     def ios_fetch_and_store_conf(self):
         if not self.PRIVILEGED:
             self.ios_read()
+        print("Changing terminal length...")
+        # Prevents --more-- prompt from showing, causing issues with CRLFs
+        self.connection.write(("terminal length 0").encode("ascii") + b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         print("Reading running-config and startup-config...")
-        def read_conf(list, file_name):
+
+        def read_conf(store_list, file_name):
             self.connection.write(("show " + file_name).encode("ascii") + b"\n")
-            line = self.connection.read_until(b"\n", timeout=5).decode().strip()
-            while line.strip():
-                line = self.connection.read_until(b"\n", timeout=5).decode().strip()
-                if self.IOS_SYNTAX["more"] in line:
-                    self.connection.write(b" ")
-                    continue
-                list.append(line)
-                print(line)
+            self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+            while True:
+                line = self.connection.read_until(b"\r\n", timeout=self.READ_TIMEOUT)
+                if not line:
+                    break
+                line = line.strip().decode()
+                store_list.append(line)
 
         read_conf(self.startup_config,"startup-config")
         read_conf(self.running_config,"running-config")
-
+        print(self.running_config,self.startup_config)
 
     def ios_read(self):
         while True:
-            line = self.connection.read_until(b"\n", timeout=5)
+            line = self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
             if not line.strip():
                 continue
             ### LOGIN STUFF ###
@@ -81,7 +86,7 @@ class TeleCisc:
             ### MODE STUFF ###
             elif self.IOS_SYNTAX["unprivileged"] in line.decode():
                 self.mode = self.UNPRIVILEGED
-                print("Logged in... Entering Privileged Mode...")
+                print("Logged in...\nEntering Privileged Mode...")
                 self.connection.write("enable".encode("ascii") + b"\n")
                 continue
             elif self.IOS_SYNTAX["privileged"] in line.decode():
@@ -101,12 +106,13 @@ class TeleCisc:
             print("Connection to host failed:", e)
             self.connection = None
             quit()
-        print("Connection Succeeded! Waiting for log in prompt...")
+        print("Connection Succeeded!\nWaiting for log in prompt...")
         try:
             self.ios_read()
             self.ios_fetch_and_store_conf()
-            self.connection.interact()
         except ConnectionAbortedError as e:
+            print("Telnet connection died:",e)
+        except EOFError as e:
             print("Telnet connection died:",e)
 
 TeleCisc().connect()
