@@ -9,7 +9,7 @@ import getpass, socket, os
 
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
 # Tip: you can use forward slashes instead of backslashes on Windows
-CONFIGS_ROOT_DIR = ""
+CONFIGS_ROOT_DIR = "//ATLAS/Repos/Cisco Configurations/Static/"
 
 
 class Menu:
@@ -22,10 +22,7 @@ class Menu:
     key_queue = []
 
     def header(self, text):  # ---header text---
-        print(self.colors['end'] + self.colors['yellow'] + ('-' * int((self.horizontal_len - len(text)) / 2)) +
-              self.colors['end'] +
-              text + self.colors['end'] + self.colors['yellow'] + ('-' * int((self.horizontal_len - len(text)) / 2)) +
-              self.colors['end'])
+        print(self.colors['yellow'] + text + self.colors['end'])
 
     def divider(self):  # ----------
         print(self.colors['end'] + self.colors['yellow'] + '-' * self.horizontal_len + self.colors['end'])
@@ -35,7 +32,7 @@ class Menu:
         while True:
             if not menu:
                 print("There doesn't appear to be anything here...")
-                return 'r'
+                return ''
             if menu is not None:
                 self.header(head)
                 for num, entry in enumerate(menu):  # Print entries
@@ -59,7 +56,7 @@ class Menu:
                 del self.key_queue[0]
             if entry == 'q':  # input 'q' to quit
                 quit()
-            elif entry == 'r' or entry == '':  # Returns r or space for menus to handle it.
+            elif entry == '':  # Returns space for menus to handle it.
                 return entry
             try:  # Type cast num input to int
                 entry = int(entry)
@@ -84,10 +81,15 @@ class Menu:
             os.chdir(path)
             while True:
                 files = os.listdir("./")
-                inpt = self.get_menu("PATH", files, "*Select a file or [Enter] - go up a dir, [r] - return.\n>>>")
-                if inpt == 'r':
-                    return None
-                elif inpt == '':
+                menu_display = []
+                # Appending a "/" to dirnames here so it's easy to differentiate between files and dirs in the menu UI.
+                for i in files:
+                    if os.path.isdir("./" + i):
+                        menu_display.append(i + "/\t->(" + str(len(os.listdir("./" + i))) + ")")
+                    else:
+                        menu_display.append(i)
+                inpt = self.get_menu(path, menu_display, "*Enter a file/dir number or [Enter] - go up a dir.\n>>>")
+                if inpt == '':
                     os.chdir("..")
                     continue
                 selected = files[inpt - 1]
@@ -117,7 +119,8 @@ class TeleCisc:
         "login_fail": "% Bad",
         "unprivileged": ">",
         "privileged": "#",
-        "more": "--More--"
+        "more": "--More--",
+        "host": "hostname",
     }
 
     def __init__(self):
@@ -128,6 +131,10 @@ class TeleCisc:
         self.mode = ""
         self.running_config = []
         self.startup_config = []
+        self.config_file = []
+        self.config_file_name = ""
+        self.config_file_path = ""
+        self.tftp_server_active = False
 
     def input_password(self):
         passwd = ""
@@ -145,11 +152,12 @@ class TeleCisc:
             self.host = input("IP or Hostname: ")
 
     def ios_fetch_and_store_conf(self):
+        print("\n---Device Configuration Read---")
         if not self.PRIVILEGED:
             self.ios_read()
         print("Changing terminal length...")
         # Prevents --more-- prompt from showing, causing issues with CRLFs
-        self.connection.write(("terminal length 0").encode("ascii") + b"\n")
+        self.connection.write("terminal length 0".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         print("Reading running-config and startup-config...")
 
@@ -164,10 +172,12 @@ class TeleCisc:
                 store_list.append(line)
 
         read_conf(self.startup_config, "startup-config")
+        print("startup-config read:",self.startup_config)
         read_conf(self.running_config, "running-config")
-        print(self.running_config, self.startup_config)
+        print("running-config read:",self.running_config)
 
     def ios_read(self):
+        print("\n---Command Line Access---")
         while True:
             line = self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
             if not line.strip():
@@ -198,10 +208,38 @@ class TeleCisc:
             else:
                 continue
 
-    def connect(self):
-        abs_path, file_name = Menu().get_path_menu(CONFIGS_ROOT_DIR)
-        print(list(i.strip() for i in open(abs_path + file_name)))
+    def config_file_selection(self):
+        print("\n---Configuration File Selection---")
+        if not CONFIGS_ROOT_DIR:
+            print("***Change CONFIGS_ROOT_DIR in the script to a config file location!***")
+        while True:
+            abs_path, file_name = Menu().get_path_menu(CONFIGS_ROOT_DIR)
+            config_as_list = list(i.strip() for i in open(abs_path + file_name))
+            print(config_as_list)
+            host_name = "".join([i for i in config_as_list if self.IOS_SYNTAX["host"] in i.strip()])
+            print("PATH: " + abs_path + file_name + "\nHOSTNAME: " + host_name if host_name else "(not found in file)")
+            good_file = input("Continue using this file? [y/n]:")
+            if good_file.strip().lower() in ["y", "yes"]:
+                self.config_file = config_as_list
+                self.config_file_path = abs_path
+                self.config_file_name = file_name
+                break
+            else:
+                continue
+        print("File selected!")
 
+    def ios_tclsh(self):
+        print("\n---TCLSH File Creation---")
+        if not self.PRIVILEGED:
+            self.ios_read()
+        print("Entering tcl shell...")
+        self.connection.write("tclsh".encode("ascii") + b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.write("puts [open \"flash:temp.txt\" w+]{".encode("ascii") + b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+#https://howdoesinternetwork.com/2018/create-file-cisco-ios
+    def telnet_to_device(self):
+        print("\n---Device Connection---")
         self.initial_connect()
         print("Attempting connection to " + self.host + "...")
         try:
@@ -212,13 +250,15 @@ class TeleCisc:
             self.connection = None
             quit()
         print("Connection Succeeded!\nWaiting for log in prompt...")
+
+
+    def run(self):
+        self.config_file_selection()
+        self.telnet_to_device()
         try:
             self.ios_read()
-            self.ios_fetch_and_store_conf()
-        except ConnectionAbortedError as e:
-            print("Telnet connection died:", e)
-        except EOFError as e:
+            # self.ios_fetch_and_store_conf()
+        except (ConnectionAbortedError, EOFError) as e:
             print("Telnet connection died:", e)
 
-
-TeleCisc().connect()
+TeleCisc().run()
