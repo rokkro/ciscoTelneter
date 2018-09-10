@@ -13,19 +13,14 @@ CONFIGS_ROOT_DIR = "//ATLAS/Repos/Cisco Configurations/Static/"
 
 
 class Menu:
-    colors = {
-        "purple": "\033[1;94m",
-        "yellow": '\33[33m',
-        "end": '\033[1;0m',
-    }
     horizontal_len = 40
     key_queue = []
 
     def header(self, text):  # ---header text---
-        print(self.colors['yellow'] + text + self.colors['end'])
+        print(text)
 
     def divider(self):  # ----------
-        print(self.colors['end'] + self.colors['yellow'] + '-' * self.horizontal_len + self.colors['end'])
+        print( '-' * self.horizontal_len)
 
     def get_menu(self, head, menu, input_menu):
         # Numbered user input menu
@@ -36,16 +31,11 @@ class Menu:
             if menu is not None:
                 self.header(head)
                 for num, entry in enumerate(menu):  # Print entries
-                    print("[" + self.colors['purple'] + str(num + 1) + self.colors['end'] + "] - " + str(entry))
+                    print("[" +  str(num + 1) +   "] - " + str(entry))
                 self.divider()
             if not self.key_queue:
                 # Stylize input menu
-                entry = input(self.colors['end'] + input_menu.replace("[", self.colors['end'] +
-                                                                      "[" + self.colors['purple']).replace("]",
-                                                                                                           self.colors[
-                                                                                                               'end'] + "]" +
-                                                                                                           self.colors[
-                                                                                                               'end'])).strip()
+                entry = input(input_menu.strip())
                 if len(entry.split(" ")) > 1:
                     entries = entry.split(" ")
                     entry = entries[0]
@@ -129,8 +119,7 @@ class TeleCisc:
         self.password = ""  # Only used if STORE_PASSWD is True
         self.connection = None
         self.mode = ""
-        self.running_config = []
-        self.startup_config = []
+        self.config_list_tmp = []
         self.config_file = []
         self.config_file_name = ""
         self.config_file_path = ""
@@ -151,30 +140,29 @@ class TeleCisc:
         while not self.host:
             self.host = input("IP or Hostname: ")
 
-    def ios_fetch_and_store_conf(self):
-        print("\n---Device Configuration Read---")
+    def ios_fetch_and_store_conf(self, file_name, store_list, view_command="more"):
+        # view_command should be "more" for files in flash, and "show" for running-config, startup-config, etc.
+        print("\n---Reading file", file_name + "---")
         if not self.PRIVILEGED:
             self.ios_read()
         print("Changing terminal length...")
         # Prevents --more-- prompt from showing, causing issues with CRLFs
         self.connection.write("terminal length 0".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
-        print("Reading running-config and startup-config...")
+        self.connection.write((view_command + " " + file_name).encode("ascii") + b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+        # Jump a couple lines so the above commands aren't read into the store_list
+        self.connection.write(("\r\n").encode("ascii") + b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
+        self.connection.write(("\r\n").encode("ascii") + b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
+        while True:
+            line = self.connection.read_until(b"\r\n", timeout=self.READ_TIMEOUT)
+            if not line.strip():
+                break
+            line = line.replace(b"\r",b"").replace(b"\n",b"").decode()
+            store_list.append(line)
 
-        def read_conf(store_list, file_name):
-            self.connection.write(("show " + file_name).encode("ascii") + b"\n")
-            self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
-            while True:
-                line = self.connection.read_until(b"\r\n", timeout=self.READ_TIMEOUT)
-                if not line:
-                    break
-                line = line.strip().decode()
-                store_list.append(line)
-
-        read_conf(self.startup_config, "startup-config")
-        print("startup-config read:",self.startup_config)
-        read_conf(self.running_config, "running-config")
-        print("running-config read:",self.running_config)
 
     def ios_read(self):
         print("\n---Command Line Access---")
@@ -214,6 +202,7 @@ class TeleCisc:
             print("***Change CONFIGS_ROOT_DIR in the script to a config file location!***")
         while True:
             abs_path, file_name = Menu().get_path_menu(CONFIGS_ROOT_DIR)
+            # Have to strip here
             config_as_list = list(i.strip() for i in open(abs_path + file_name))
             print(config_as_list)
             host_name = "".join([i for i in config_as_list if self.IOS_SYNTAX["host"] in i.strip()])
@@ -229,15 +218,39 @@ class TeleCisc:
         print("File selected!")
 
     def ios_tclsh(self):
+        # https://howdoesinternetwork.com/2018/create-file-cisco-ios
+
         print("\n---TCLSH File Creation---")
         if not self.PRIVILEGED:
             self.ios_read()
         print("Entering tcl shell...")
         self.connection.write("tclsh".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.write("puts [open \"flash:temp.txt\" w+]{".encode("ascii") + b"\n")
+        # puts is picky about how it determines line endings. Can't use \n, so \r was used instead.
+        print("Writing config file to 'temp.txt'...")
+        self.connection.write("puts -nonewline [open \"flash:temp.txt\" w+] {".encode("ascii") + b"\r")
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        for line in self.config_file:
+            if not line:
+                continue
+            self.connection.write(line.encode("ascii")+ b"\r")
+            self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+
+        self.connection.write("}".encode("ascii")+ b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
-#https://howdoesinternetwork.com/2018/create-file-cisco-ios
+        self.connection.write("tclquit".encode("ascii")+ b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.ios_fetch_and_store_conf("temp.txt",self.config_list_tmp)
+        print(self.config_list_tmp)
+        choice = input("Try to copy this config to the running-config? [y/n]:")
+        return choice
+
+    def copy_to_config(self, temporary_file="temp.txt", config_to_copy_to="running-config"):
+        print("---Copying",temporary_file,"to",config_to_copy_to + "---")
+        self.connection.write("copy temp.txt startup-config".encode("ascii") + b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.interact()
+
     def telnet_to_device(self):
         print("\n---Device Connection---")
         self.initial_connect()
@@ -257,6 +270,9 @@ class TeleCisc:
         self.telnet_to_device()
         try:
             self.ios_read()
+            use_config = self.ios_tclsh()
+            if use_config:
+                self.copy_to_config()
             # self.ios_fetch_and_store_conf()
         except (ConnectionAbortedError, EOFError) as e:
             print("Telnet connection died:", e)
