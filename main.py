@@ -99,6 +99,7 @@ class Menu:
 class TeleCisc:
     PORT = 23
     STORE_PASSWD = True
+    DEBUG_MODE = True
     READ_TIMEOUT = 3
     CONNECT_TIMEOUT = 10
     PRIVILEGED = "privileged"
@@ -219,7 +220,6 @@ class TeleCisc:
 
     def ios_tclsh(self):
         # https://howdoesinternetwork.com/2018/create-file-cisco-ios
-
         print("\n---TCLSH File Creation---")
         if not self.PRIVILEGED:
             self.ios_read()
@@ -228,28 +228,37 @@ class TeleCisc:
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         # puts is picky about how it determines line endings. Can't use \n, so \r was used instead.
         print("Writing config file to 'temp.txt'...")
+        # Create new file in flash named temp.txt
         self.connection.write("puts -nonewline [open \"flash:temp.txt\" w+] {".encode("ascii") + b"\r")
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        # For every line in the config file on disk, write to the temporary file
         for line in self.config_file:
             if not line:
                 continue
             self.connection.write(line.encode("ascii")+ b"\r")
             self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-
+        # End the file
         self.connection.write("}".encode("ascii")+ b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+        # Exit the tcl shell
         self.connection.write("tclquit".encode("ascii")+ b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+        # Read through temp.txt, put in a list to make sure everything was copied correctly
         self.ios_fetch_and_store_conf("temp.txt",self.config_list_tmp)
+        # Print contents of temp.txt
         print(self.config_list_tmp)
+        # Ask user
         choice = input("Try to copy this config to the running-config? [y/n]:")
         return choice
 
     def copy_to_config(self, temporary_file="temp.txt", config_to_copy_to="running-config"):
         print("---Copying",temporary_file,"to",config_to_copy_to + "---")
-        self.connection.write("copy temp.txt running-config".encode("ascii") + b"\n")
+        self.connection.write("copy temp.txt test.txt".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.interact()
+        self.connection.write("running-config".encode("ascii") + b"\n")
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+
+        #self.connection.interact()
 
     def telnet_to_device(self):
         print("\n---Device Connection---")
@@ -260,19 +269,33 @@ class TeleCisc:
         except socket.gaierror as e:
             # Kill connection when it fails
             print("Connection to host failed:", e)
-            self.connection = None
+            self.connection.close()
             quit()
         print("Connection Succeeded!\nWaiting for log in prompt...")
 
+    def remove_temp_file(self):
+        print("Trying to delete temp.txt...")
+        self.connection.write("delete flash:temp.txt".encode("ascii") + b"\n")
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+
+
     def run(self):
+
         self.config_file_selection()
         self.telnet_to_device()
+        if self.DEBUG_MODE:
+            self.connection.set_debuglevel(2)
+
         try:
             self.ios_read()
             use_config = self.ios_tclsh()
             if use_config:
                 self.copy_to_config()
-            # self.ios_fetch_and_store_conf()
+            else:
+                print("Process aborted")
+            self.remove_temp_file()
         except (ConnectionAbortedError, EOFError) as e:
             print("Telnet connection died:", e)
 
