@@ -203,7 +203,7 @@ class TeleCisc:
         while True:
             abs_path, file_name = Menu().get_path_menu(CONFIGS_ROOT_DIR)
             # Have to strip here
-            config_as_list = list(i.strip() for i in open(abs_path + file_name))
+            config_as_list = list(i.replace("\n","").replace("\r","") for i in open(abs_path + file_name))
             print(config_as_list)
             host_name = "".join([i for i in config_as_list if self.IOS_SYNTAX["host"] in i.strip()])
             print("PATH: " + abs_path + file_name + "\nHOSTNAME: " + host_name if host_name else "(not found in file)")
@@ -247,7 +247,7 @@ class TeleCisc:
 
     def copy_to_config(self, temporary_file="temp.txt", config_to_copy_to="running-config"):
         print("---Copying",temporary_file,"to",config_to_copy_to + "---")
-        self.connection.write("copy temp.txt startup-config".encode("ascii") + b"\n")
+        self.connection.write("copy temp.txt running-config".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         self.connection.interact()
 
@@ -263,7 +263,6 @@ class TeleCisc:
             self.connection = None
             quit()
         print("Connection Succeeded!\nWaiting for log in prompt...")
-
 
     def run(self):
         self.config_file_selection()
