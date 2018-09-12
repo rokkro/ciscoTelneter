@@ -125,11 +125,12 @@ class TeleCisc:
         self.config_file = []
         self.config_file_name = ""
         self.config_file_path = ""
+        self.mode = self.UNPRIVILEGED
 
     def ios_fetch_and_store_conf(self, file_name, store_list, view_command="more"):
         # view_command should be "more" for files in flash, and "show" for startup-config, running-config, etc.
         print("\n---Reading file", file_name + "---")
-        if not self.PRIVILEGED:
+        if self.mode == self.UNPRIVILEGED:
             self.ios_read()
         print("Changing terminal length...")
         # Prevents --more-- prompt from showing, causing issues with CRLFs
@@ -170,10 +171,12 @@ class TeleCisc:
                 continue
             ### MODE STUFF ###
             elif self.IOS_SYNTAX["unprivileged"] in line.decode():
+                self.mode = self.UNPRIVILEGED
                 print("Logged in...\nEntering Privileged Mode...")
                 self.connection.write("enable".encode("ascii") + b"\n")
                 continue
             elif self.IOS_SYNTAX["privileged"] in line.decode():
+                self.mode = self.PRIVILEGED
                 print("Entered Privileged Mode.")
                 break
             else:
@@ -182,7 +185,7 @@ class TeleCisc:
     def ios_tclsh(self):
         # https://howdoesinternetwork.com/2018/create-file-cisco-ios
         print("\n---Tclsh File Creation---")
-        if not self.PRIVILEGED:
+        if self.mode == self.UNPRIVILEGED:
             self.ios_read()
         print("Entering tcl shell...")
         self.connection.write("tclsh".encode("ascii") + b"\n")
