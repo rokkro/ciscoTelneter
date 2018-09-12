@@ -100,7 +100,7 @@ class Menu:
 class TeleCisc:
     PORT = 23
     STORE_PASSWD = True
-    DEBUG_MODE = False
+    DEBUG_MODE = True
     READ_TIMEOUT = 3
     CONNECT_TIMEOUT = 10
     TEMP_FILE_NAME = "temp.txt"
@@ -175,6 +175,8 @@ class TeleCisc:
                 continue
             elif self.IOS_SYNTAX["login_fail"] in line.decode():
                 print("Bad Password!")
+                self.password = ""
+                self.username = ""
                 continue
             ### MODE STUFF ###
             elif self.IOS_SYNTAX["unprivileged"] in line.decode():
