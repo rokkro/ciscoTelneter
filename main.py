@@ -9,7 +9,7 @@ import getpass, socket, os
 
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
 # Tip: you can use forward slashes instead of backslashes on Windows
-CONFIGS_ROOT_DIR = "//ATLAS/Repos/Cisco Configurations/Static/"
+CONFIGS_ROOT_DIR = ""
 
 
 class Menu:
@@ -99,11 +99,13 @@ class Menu:
 class TeleCisc:
     PORT = 23
     STORE_PASSWD = True
-    DEBUG_MODE = True
+    DEBUG_MODE = False
     READ_TIMEOUT = 3
     CONNECT_TIMEOUT = 10
+    TEMP_FILE_NAME = "temp.txt"
     PRIVILEGED = "privileged"
     UNPRIVILEGED = "unprivileged"
+
     IOS_SYNTAX = {
         "username": "Username:",
         "password": "Password:",
@@ -119,30 +121,13 @@ class TeleCisc:
         self.host = ""
         self.password = ""  # Only used if STORE_PASSWD is True
         self.connection = None
-        self.mode = ""
         self.config_list_tmp = []
         self.config_file = []
         self.config_file_name = ""
         self.config_file_path = ""
-        self.tftp_server_active = False
-
-    def input_password(self):
-        passwd = ""
-        if self.STORE_PASSWD and self.password:
-            return self.password
-        while not passwd:
-            # getpass() does not work in normal IDE, use debug mode or the command line
-            passwd = getpass.getpass('Password: ')
-        if self.STORE_PASSWD:
-            self.password = passwd
-        return passwd
-
-    def initial_connect(self):
-        while not self.host:
-            self.host = input("IP or Hostname: ")
 
     def ios_fetch_and_store_conf(self, file_name, store_list, view_command="more"):
-        # view_command should be "more" for files in flash, and "show" for running-config, startup-config, etc.
+        # view_command should be "more" for files in flash, and "show" for startup-config, running-config, etc.
         print("\n---Reading file", file_name + "---")
         if not self.PRIVILEGED:
             self.ios_read()
@@ -163,7 +148,6 @@ class TeleCisc:
                 break
             line = line.replace(b"\r",b"").replace(b"\n",b"").decode()
             store_list.append(line)
-
 
     def ios_read(self):
         print("\n---Command Line Access---")
@@ -186,16 +170,102 @@ class TeleCisc:
                 continue
             ### MODE STUFF ###
             elif self.IOS_SYNTAX["unprivileged"] in line.decode():
-                self.mode = self.UNPRIVILEGED
                 print("Logged in...\nEntering Privileged Mode...")
                 self.connection.write("enable".encode("ascii") + b"\n")
                 continue
             elif self.IOS_SYNTAX["privileged"] in line.decode():
-                self.mode = self.PRIVILEGED
                 print("Entered Privileged Mode.")
                 break
             else:
                 continue
+
+    def ios_tclsh(self):
+        # https://howdoesinternetwork.com/2018/create-file-cisco-ios
+        print("\n---Tclsh File Creation---")
+        if not self.PRIVILEGED:
+            self.ios_read()
+        print("Entering tcl shell...")
+        self.connection.write("tclsh".encode("ascii") + b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+        # puts is picky about how it determines line endings. Can't use \n, so \r was used instead.
+        print("Writing config file to",self.TEMP_FILE_NAME + "...")
+        # Create new file in flash named temp.txt
+        self.connection.write(("puts -nonewline [open \"flash:" + self.TEMP_FILE_NAME + "\" w+] {").encode("ascii") + b"\r")
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        # For every line in the config file on disk, write to the temporary file
+        for line in self.config_file:
+            if not line:
+                continue
+            self.connection.write(line.encode("ascii")+ b"\r")
+            self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        # End the file
+        self.connection.write("}".encode("ascii")+ b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+        # Exit the tcl shell
+        self.connection.write("tclquit".encode("ascii")+ b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+        # Read through temp.txt, put in a list to make sure everything was copied correctly
+        self.ios_fetch_and_store_conf(self.TEMP_FILE_NAME,self.config_list_tmp)
+        # Print contents of temp.txt
+        print(self.config_list_tmp)
+
+    def ios_copy_to_config(self, temporary_file="temp.txt", config_to_copy_to="startup-config"):
+        print("---Copying",temporary_file,"to",config_to_copy_to + "---")
+        self.connection.write(("copy " + self.TEMP_FILE_NAME + " startup-config").encode("ascii") + b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.write("startup-config".encode("ascii") + b"\n")
+        # Get through all the copy prompts
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.write(b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+
+    def ios_reload(self):
+        print("---Reloading device and exiting program---")
+        self.connection.write("reload".encode("ascii") + b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.write(b"yes\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+
+    def ios_remove_temp_file(self):
+        print("Trying to delete " + self.TEMP_FILE_NAME + "...")
+        self.connection.write(("delete flash:" + self.TEMP_FILE_NAME).encode("ascii") + b"\n")
+        # Get through all the delete prompts
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.write(b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.write(b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+
+    def input_password(self):
+        passwd = ""
+        if self.STORE_PASSWD and self.password:
+            return self.password
+        while not passwd:
+            # getpass() does not work in normal IDE, use debug mode or the command line
+            passwd = getpass.getpass('Password: ')
+        if self.STORE_PASSWD:
+            self.password = passwd
+        return passwd
+
+    def initial_connect(self):
+        while not self.host:
+            self.host = input("IP or Hostname: ")
 
     def config_file_selection(self):
         print("\n---Configuration File Selection---")
@@ -223,58 +293,6 @@ class TeleCisc:
                 continue
         print("File selected!")
 
-    def ios_tclsh(self):
-        # https://howdoesinternetwork.com/2018/create-file-cisco-ios
-        print("\n---TCLSH File Creation---")
-        if not self.PRIVILEGED:
-            self.ios_read()
-        print("Entering tcl shell...")
-        self.connection.write("tclsh".encode("ascii") + b"\n")
-        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
-        # puts is picky about how it determines line endings. Can't use \n, so \r was used instead.
-        print("Writing config file to 'temp.txt'...")
-        # Create new file in flash named temp.txt
-        self.connection.write("puts -nonewline [open \"flash:temp.txt\" w+] {".encode("ascii") + b"\r")
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        # For every line in the config file on disk, write to the temporary file
-        for line in self.config_file:
-            if not line:
-                continue
-            self.connection.write(line.encode("ascii")+ b"\r")
-            self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        # End the file
-        self.connection.write("}".encode("ascii")+ b"\n")
-        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
-        # Exit the tcl shell
-        self.connection.write("tclquit".encode("ascii")+ b"\n")
-        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
-        # Read through temp.txt, put in a list to make sure everything was copied correctly
-        self.ios_fetch_and_store_conf("temp.txt",self.config_list_tmp)
-        # Print contents of temp.txt
-        print(self.config_list_tmp)
-        # Ask user
-        choice = input("Try to copy this config to the running-config? [y/n]:")
-        return choice
-
-    def copy_to_config(self, temporary_file="temp.txt", config_to_copy_to="running-config"):
-        print("---Copying",temporary_file,"to",config_to_copy_to + "---")
-        self.connection.write("copy temp.txt test.txt".encode("ascii") + b"\n")
-        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.write("running-config".encode("ascii") + b"\n")
-        # Get through all the copy prompts
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.write(b"\n")
-        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-
     def telnet_to_device(self):
         print("\n---Device Connection---")
         self.initial_connect()
@@ -285,38 +303,39 @@ class TeleCisc:
             # Kill connection when it fails
             print("Connection to host failed:", e)
             quit()
+        except socket.timeout as e:
+            print("Connection to host failed:", e)
+            quit()
         print("Connection Succeeded!\nWaiting for log in prompt...")
 
-    def remove_temp_file(self):
-        print("Trying to delete temp.txt...")
-        self.connection.write("delete flash:temp.txt".encode("ascii") + b"\n")
-        # Get through all the delete prompts
-        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.write(b"\n")
-        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.write(b"\n")
-        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-
     def run(self):
+        while True:
+            # Select backup config file from disk
+            self.config_file_selection()
+            # Do a telnet connection to device
+            self.telnet_to_device()
+            if self.DEBUG_MODE:
+                # Print extra console output
+                self.connection.set_debuglevel(2)
+            try:
+                # Login, elevate privileges
+                self.ios_read()
+                # Enter TCL shell, write config file to temporary file
+                self.ios_tclsh()
+                if not input("Try to copy this config to the startup-config? [y/n]:").strip().lower() in ['y','yes']:
+                    self.host = ""
+                    self.connection = None
+                    self.username = ""
+                    self.password = ""
+                    continue
+                # Copy temporary file to startup-config
+                self.ios_copy_to_config()
+                # Remove temporary file
+                self.ios_remove_temp_file()
+                if input("Reload device to use new config? [y/n]:").strip().lower() in ['y', 'yes']:
+                    self.ios_reload()
+            except (ConnectionAbortedError, EOFError) as e:
+                print("Telnet connection died:", e)
 
-        self.config_file_selection()
-        self.telnet_to_device()
-        if self.DEBUG_MODE:
-            self.connection.set_debuglevel(2)
-
-        try:
-            self.ios_read()
-            use_config = self.ios_tclsh()
-            if use_config:
-                self.copy_to_config()
-            else:
-                print("Process aborted")
-            self.remove_temp_file()
-        except (ConnectionAbortedError, EOFError) as e:
-            print("Telnet connection died:", e)
 
 TeleCisc().run()
