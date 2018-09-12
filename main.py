@@ -278,7 +278,7 @@ class TeleCisc:
             self.password = passwd
         return passwd
 
-    def initial_connect(self):
+    def input_host(self):
         while not self.host:
             self.host = input("IP or Hostname: ")
 
@@ -310,7 +310,7 @@ class TeleCisc:
 
     def telnet_to_device(self):
         print("\n---Device Connection---")
-        self.initial_connect()
+        self.input_host()
         print("Attempting connection to " + self.host + "...")
         try:
             self.connection = Telnet(self.host, self.PORT, timeout=self.CONNECT_TIMEOUT)
