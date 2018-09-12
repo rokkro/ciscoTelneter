@@ -207,12 +207,17 @@ class TeleCisc:
             config_as_list = list(i.replace("\n","").replace("\r","") for i in open(abs_path + file_name))
             print(config_as_list)
             host_name = "".join([i for i in config_as_list if self.IOS_SYNTAX["host"] in i.strip()])
+            host_name = host_name.replace("hostname","").strip()
             print("PATH: " + abs_path + file_name + "\nHOSTNAME: " + host_name if host_name else "(not found in file)")
             good_file = input("Continue using this file? [y/n]:")
             if good_file.strip().lower() in ["y", "yes"]:
                 self.config_file = config_as_list
                 self.config_file_path = abs_path
                 self.config_file_name = file_name
+                if host_name:
+                    use_this_host = input("Attempt to connect to device with this hostname? [y/n]:")
+                    if use_this_host.strip().lower() in ["y", "yes"]:
+                        self.host = host_name
                 break
             else:
                 continue
@@ -256,9 +261,19 @@ class TeleCisc:
         self.connection.write("copy temp.txt test.txt".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         self.connection.write("running-config".encode("ascii") + b"\n")
+        # Get through all the copy prompts
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-
-        #self.connection.interact()
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.write(b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
 
     def telnet_to_device(self):
         print("\n---Device Connection---")
@@ -269,17 +284,22 @@ class TeleCisc:
         except socket.gaierror as e:
             # Kill connection when it fails
             print("Connection to host failed:", e)
-            self.connection.close()
             quit()
         print("Connection Succeeded!\nWaiting for log in prompt...")
 
     def remove_temp_file(self):
         print("Trying to delete temp.txt...")
         self.connection.write("delete flash:temp.txt".encode("ascii") + b"\n")
+        # Get through all the delete prompts
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        self.connection.write(b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-
+        self.connection.write(b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
+        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
 
     def run(self):
 
