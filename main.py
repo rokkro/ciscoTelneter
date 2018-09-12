@@ -8,11 +8,12 @@ from telnetlib import Telnet
 import getpass, socket, os
 
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
-# Tip: you can use forward slashes instead of backslashes on Windows
+# You can use forward slashes instead of backslashes on Windows
 CONFIGS_ROOT_DIR = ""
 
 
 class Menu:
+    # Mini menu UI for selecting a file to use
     horizontal_len = 40
     key_queue = []
 
@@ -20,7 +21,7 @@ class Menu:
         print(text)
 
     def divider(self):  # ----------
-        print( '-' * self.horizontal_len)
+        print('-' * self.horizontal_len)
 
     def get_menu(self, head, menu, input_menu):
         # Numbered user input menu
@@ -31,7 +32,7 @@ class Menu:
             if menu is not None:
                 self.header(head)
                 for num, entry in enumerate(menu):  # Print entries
-                    print("[" +  str(num + 1) +   "] - " + str(entry))
+                    print("[" + str(num + 1) + "] - " + str(entry))
                 self.divider()
             if not self.key_queue:
                 # Stylize input menu
@@ -127,31 +128,37 @@ class TeleCisc:
         self.config_file_path = ""
         self.mode = self.UNPRIVILEGED
 
+    def ios_change_term_length(self, length):
+        print("Changing terminal length...")
+        # Prevents --more-- prompt from showing, causing issues with CRLFs
+        self.connection.write(("terminal length " + str(length)).encode("ascii") + b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+
     def ios_fetch_and_store_conf(self, file_name, store_list, view_command="more"):
         # view_command should be "more" for files in flash, and "show" for startup-config, running-config, etc.
         print("\n---Reading file", file_name + "---")
         if self.mode == self.UNPRIVILEGED:
-            self.ios_read()
-        print("Changing terminal length...")
-        # Prevents --more-- prompt from showing, causing issues with CRLFs
-        self.connection.write("terminal length 0".encode("ascii") + b"\n")
-        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+            self.ios_login_and_elevate()
+        self.ios_change_term_length(0)
         self.connection.write((view_command + " " + file_name).encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         # Jump a couple lines so the above commands aren't read into the store_list
-        self.connection.write(("\r\n").encode("ascii") + b"\n")
+        self.connection.write("\r\n".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
-        self.connection.write(("\r\n").encode("ascii") + b"\n")
+        self.connection.write("\r\n".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
         while True:
+            # Read every line of file, storing it in store_list
             line = self.connection.read_until(b"\r\n", timeout=self.READ_TIMEOUT)
+            # If empty line, assume done reading file
             if not line.strip():
                 break
-            line = line.replace(b"\r",b"").replace(b"\n",b"").decode()
+            # Remove CRLFs without using strip(), which removes all spacing.
+            line = line.replace(b"\r", b"").replace(b"\n", b"").decode()
             store_list.append(line)
 
-    def ios_read(self):
-        print("\n---Command Line Access---")
+    def ios_login_and_elevate(self):
+        print("\n---CLI Login---")
         while True:
             line = self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
             if not line.strip():
@@ -184,36 +191,41 @@ class TeleCisc:
 
     def ios_tclsh(self):
         # https://howdoesinternetwork.com/2018/create-file-cisco-ios
+        # Deals with tcl shell to create a temporary text file
+        # This file can then be copied to the startup-config
+        # This is done instead of using the configuration mode, as we want to add a fresh config file and not
+        #   have to worry about leftover settings being retained.
         print("\n---Tclsh File Creation---")
         if self.mode == self.UNPRIVILEGED:
-            self.ios_read()
+            self.ios_login_and_elevate()
         print("Entering tcl shell...")
         self.connection.write("tclsh".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
-        # puts is picky about how it determines line endings. Can't use \n, so \r was used instead.
-        print("Writing config file to",self.TEMP_FILE_NAME + "...")
+        print("Writing config file to", self.TEMP_FILE_NAME + "...")
         # Create new file in flash named temp.txt
-        self.connection.write(("puts -nonewline [open \"flash:" + self.TEMP_FILE_NAME + "\" w+] {").encode("ascii") + b"\r")
+        # puts is picky about how it determines line endings. Can't use \n, so \r was used instead.
+        self.connection.write(
+            ("puts -nonewline [open \"flash:" + self.TEMP_FILE_NAME + "\" w+] {").encode("ascii") + b"\r")
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
         # For every line in the config file on disk, write to the temporary file
         for line in self.config_file:
             if not line:
                 continue
-            self.connection.write(line.encode("ascii")+ b"\r")
+            self.connection.write(line.encode("ascii") + b"\r")
             self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
         # End the file
-        self.connection.write("}".encode("ascii")+ b"\n")
+        self.connection.write("}".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         # Exit the tcl shell
-        self.connection.write("tclquit".encode("ascii")+ b"\n")
+        self.connection.write("tclquit".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         # Read through temp.txt, put in a list to make sure everything was copied correctly
-        self.ios_fetch_and_store_conf(self.TEMP_FILE_NAME,self.config_list_tmp)
+        self.ios_fetch_and_store_conf(self.TEMP_FILE_NAME, self.config_list_tmp)
         # Print contents of temp.txt
         print(self.config_list_tmp)
 
     def ios_copy_to_config(self, temporary_file="temp.txt", config_to_copy_to="startup-config"):
-        print("---Copying",temporary_file,"to",config_to_copy_to + "---")
+        print("---Copying", temporary_file, "to", config_to_copy_to + "---")
         self.connection.write(("copy " + self.TEMP_FILE_NAME + " startup-config").encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         self.connection.write("startup-config".encode("ascii") + b"\n")
@@ -242,7 +254,7 @@ class TeleCisc:
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
 
     def ios_remove_temp_file(self):
-        print("Trying to delete " + self.TEMP_FILE_NAME + "...")
+        print("Deleting " + self.TEMP_FILE_NAME + "...")
         self.connection.write(("delete flash:" + self.TEMP_FILE_NAME).encode("ascii") + b"\n")
         # Get through all the delete prompts
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
@@ -277,10 +289,10 @@ class TeleCisc:
         while True:
             abs_path, file_name = Menu().get_path_menu(CONFIGS_ROOT_DIR)
             # Have to strip here
-            config_as_list = list(i.replace("\n","").replace("\r","") for i in open(abs_path + file_name))
+            config_as_list = list(i.replace("\n", "").replace("\r", "") for i in open(abs_path + file_name))
             print(config_as_list)
             host_name = "".join([i for i in config_as_list if self.IOS_SYNTAX["host"] in i.strip()])
-            host_name = host_name.replace("hostname","").strip()
+            host_name = host_name.replace("hostname", "").strip()
             print("PATH: " + abs_path + file_name + "\nHOSTNAME: " + host_name if host_name else "(not found in file)")
             good_file = input("Continue using this file? [y/n]:")
             if good_file.strip().lower() in ["y", "yes"]:
@@ -322,10 +334,10 @@ class TeleCisc:
                 self.connection.set_debuglevel(2)
             try:
                 # Login, elevate privileges
-                self.ios_read()
+                self.ios_login_and_elevate()
                 # Enter TCL shell, write config file to temporary file
                 self.ios_tclsh()
-                if not input("Try to copy this config to the startup-config? [y/n]:").strip().lower() in ['y','yes']:
+                if not input("Try to copy this config to the startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
                     self.host = ""
                     self.connection = None
                     self.username = ""
@@ -337,6 +349,7 @@ class TeleCisc:
                 self.ios_remove_temp_file()
                 if input("Reload device to use new config? [y/n]:").strip().lower() in ['y', 'yes']:
                     self.ios_reload()
+                    quit()
             except (ConnectionAbortedError, EOFError) as e:
                 print("Telnet connection died:", e)
 
