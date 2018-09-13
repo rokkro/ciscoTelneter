@@ -204,7 +204,11 @@ class TeleCisc:
         while True:
             abs_path, file_name = Menu().get_path_menu(CONFIGS_ROOT_DIR)
             # Have to strip here
-            config_as_list = list(i.replace("\n", "").replace("\r", "") for i in open(abs_path + file_name))
+            try:
+                config_as_list = list(i.replace("\n", "").replace("\r", "") for i in open(abs_path + file_name))
+            except UnicodeDecodeError as e:
+                print("Bad file selected:",e)
+                continue
             print(config_as_list)
             host_name = "".join([i for i in config_as_list if "hostname" in i.strip()])
             host_name = host_name.replace("hostname", "").strip()
