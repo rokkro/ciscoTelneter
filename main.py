@@ -11,13 +11,13 @@ import socket
 
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
 # You can use forward slashes instead of backslashes on Windows
-CONFIGS_ROOT_DIR = "//ATLAS/repos/"
+CONFIGS_ROOT_DIR = ""
 
 
 class TeleCisc:
     PORT = 23
     STORE_PASSWD = False
-    DEBUG_MODE = True
+    DEBUG_MODE = False
     READ_TIMEOUT = 3
     CONNECT_TIMEOUT = 10
     TEMP_FILE_NAME = "temp.txt"
