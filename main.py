@@ -11,7 +11,7 @@ import socket
 
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
 # You can use forward slashes instead of backslashes on Windows
-CONFIGS_ROOT_DIR = ""
+CONFIGS_ROOT_DIR = "//ATLAS/repos/"
 
 
 class TeleCisc:
@@ -108,13 +108,19 @@ class TeleCisc:
         if self.mode == self.UNPRIVILEGED:
             self.ios_login_and_elevate()
         print("Entering tcl shell...")
+        self.connection.read_until(b"\r\n", timeout=self.READ_TIMEOUT)  # Make written command work
+
         self.connection.write("tclsh".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+        # Ensure it actually enters the tcl shell
+        self.connection.write(b"\n")
+        self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
+
         print("Writing config file to", self.TEMP_FILE_NAME + "...")
         # Create new file in flash named temp.txt
-        # puts is picky about how it determines line endings. Can't use \n, so \r was used instead.
+        # puts is picky about how it determines line endings. Can't use \n, so \r was used instead.y
         self.connection.write(
-            ("puts -nonewline [open \"flash:" + self.TEMP_FILE_NAME + "\" w+] {").encode("ascii") + b"\r")
+            ("puts -nonewline [open \"flash:" + self.TEMP_FILE_NAME + "\" w+] {").encode('utf-8'))
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
         # For every line in the config file on disk, write to the temporary file
         for line in self.config_file:
@@ -135,9 +141,9 @@ class TeleCisc:
 
     def ios_copy_to_config(self, temporary_file="temp.txt", config_to_copy_to="startup-config"):
         print("---Copying", temporary_file, "to", config_to_copy_to + "---")
-        self.connection.write(("copy " + self.TEMP_FILE_NAME + " startup-config").encode("ascii") + b"\n")
+        self.connection.write(("copy " + self.TEMP_FILE_NAME + " " + config_to_copy_to).encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.write("startup-config".encode("ascii") + b"\n")
+        self.connection.write(config_to_copy_to.encode("ascii") + b"\n")
         # Get through all the copy prompts
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
@@ -247,13 +253,18 @@ class TeleCisc:
                 # Enter TCL shell, write config file to temporary file
                 self.ios_tclsh()
                 if not input("Try to copy this config to the startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
-                    self.host = ""
-                    self.connection = None
-                    self.username = ""
-                    self.password = ""
-                    continue
-                # Copy temporary file to startup-config
-                self.ios_copy_to_config()
+                    if not input("Try to copy this config to the running-config instead? [y/n]:").strip().lower() in ['y',
+                                                                                                              'yes']:
+                        self.host = ""
+                        self.connection = None
+                        self.username = ""
+                        self.password = ""
+                        continue
+                    else:
+                        self.ios_copy_to_config(config_to_copy_to="running-config")
+                else:
+                    # Copy temporary file to startup-config
+                    self.ios_copy_to_config(config_to_copy_to="startup-config")
                 # Remove temporary file
                 self.ios_remove_temp_file()
                 if input("Reload device to use new config? [y/n]:").strip().lower() in ['y', 'yes']:
