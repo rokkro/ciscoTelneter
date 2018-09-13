@@ -16,23 +16,13 @@ CONFIGS_ROOT_DIR = ""
 
 class TeleCisc:
     PORT = 23
-    STORE_PASSWD = True
+    STORE_PASSWD = False
     DEBUG_MODE = True
     READ_TIMEOUT = 3
     CONNECT_TIMEOUT = 10
     TEMP_FILE_NAME = "temp.txt"
     PRIVILEGED = "privileged"
     UNPRIVILEGED = "unprivileged"
-
-    IOS_SYNTAX = {
-        "username": "Username:",
-        "password": "Password:",
-        "login_fail": "% Bad",
-        "unprivileged": ">",
-        "privileged": "#",
-        "more": "--More--",
-        "host": "hostname",
-    }
 
     def __init__(self):
         self.username = ""
@@ -80,28 +70,28 @@ class TeleCisc:
             line = self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
             if not line.strip():
                 continue
-            ### LOGIN STUFF ###
-            if self.IOS_SYNTAX["username"] in line.decode():
+            # LOGIN STUFF #
+            if "Username:" in line.decode():
                 while not self.username:
                     self.username = input("Username: ")
                 self.connection.write(self.username.encode('ascii') + b"\n")
                 self.connection.interact()
                 continue
-            elif self.IOS_SYNTAX["password"] in line.decode():
+            elif "Password:" in line.decode():
                 self.connection.write(self.input_password().encode('ascii') + b"\n")
                 continue
-            elif self.IOS_SYNTAX["login_fail"] in line.decode():
+            elif "% Bad" in line.decode():
                 print("Bad Password!")
                 self.password = ""
                 self.username = ""
                 continue
-            ### MODE STUFF ###
-            elif self.IOS_SYNTAX["unprivileged"] in line.decode():
+            # MODE STUFF #
+            elif ">" in line.decode():
                 self.mode = self.UNPRIVILEGED
                 print("Logged in...\nEntering Privileged Mode...")
                 self.connection.write("enable".encode("ascii") + b"\n")
                 continue
-            elif self.IOS_SYNTAX["privileged"] in line.decode():
+            elif "#" in line.decode():
                 self.mode = self.PRIVILEGED
                 print("Entered Privileged Mode.")
                 break
@@ -210,7 +200,7 @@ class TeleCisc:
             # Have to strip here
             config_as_list = list(i.replace("\n", "").replace("\r", "") for i in open(abs_path + file_name))
             print(config_as_list)
-            host_name = "".join([i for i in config_as_list if self.IOS_SYNTAX["host"] in i.strip()])
+            host_name = "".join([i for i in config_as_list if "hostname" in i.strip()])
             host_name = host_name.replace("hostname", "").strip()
             print("PATH: " + abs_path + file_name + "\nHOSTNAME: " + host_name if host_name else "(not found in file)")
             good_file = input("Continue using this file? [y/n]:")
