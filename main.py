@@ -4,97 +4,14 @@
 # Used for resetting Cisco IOS 12.X switches/routers.
 # This script is not yet fully automatic at the moment,since a new config file needs to be selected using the menu UI.
 # Running this in an IDE will probably not display the password prompt, given how getpass() works.
+from mini_menu import Menu
 from telnetlib import Telnet
-import getpass, socket, os
+import getpass
+import socket
 
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
 # You can use forward slashes instead of backslashes on Windows
 CONFIGS_ROOT_DIR = ""
-
-
-class Menu:
-    # Mini menu UI for selecting a file to use
-    horizontal_len = 40
-    key_queue = []
-
-    def header(self, text):  # ---header text---
-        print(text)
-
-    def divider(self):  # ----------
-        print('-' * self.horizontal_len)
-
-    def get_menu(self, head, menu, input_menu):
-        # Numbered user input menu
-        while True:
-            if not menu:
-                print("There doesn't appear to be anything here...")
-                return ''
-            if menu is not None:
-                self.header(head)
-                for num, entry in enumerate(menu):  # Print entries
-                    print("[" + str(num + 1) + "] - " + str(entry))
-                self.divider()
-            if not self.key_queue:
-                # Stylize input menu
-                entry = input(input_menu.strip())
-                if len(entry.split(" ")) > 1:
-                    entries = entry.split(" ")
-                    entry = entries[0]
-                    del entries[0]
-                    self.key_queue.extend(entries)
-            else:
-                entry = self.key_queue[0]
-                del self.key_queue[0]
-            if entry == 'q':  # input 'q' to quit
-                quit()
-            elif entry == '':  # Returns space for menus to handle it.
-                return entry
-            try:  # Type cast num input to int
-                entry = int(entry)
-            except ValueError:
-                continue
-            if ((entry > len(menu)) if menu is not None else False) or entry < 1:
-                # (Compare entry to menu size if the menu exists, otherwise False) OR if input is < 1
-                continue  # Recognize as invalid input
-            return entry  # Successfully return input for menus to handle
-
-    def get_path_menu(self, path="./"):
-        """
-        Saves original working dir in cwd. Gets abs path of input dir, and changes to it.
-          Creates menu from that dir. If ENTER is pressed, go up a dir. If a dir is selected, change to it.
-          Rinse and Repeat. Convert final file path to abspath, and cut out file name from it. Change to original cwd.
-          Return absolute path and the file name (strings).
-        """
-        cwd = os.getcwd()
-
-        def set_file(path):
-            path = os.path.abspath(path)
-            os.chdir(path)
-            while True:
-                files = os.listdir("./")
-                menu_display = []
-                # Appending a "/" to dirnames here so it's easy to differentiate between files and dirs in the menu UI.
-                for i in files:
-                    if os.path.isdir("./" + i):
-                        menu_display.append(i + "/\t->(" + str(len(os.listdir("./" + i))) + ")")
-                    else:
-                        menu_display.append(i)
-                inpt = self.get_menu(path, menu_display, "*Enter a file/dir number or [Enter] - go up a dir.\n>>>")
-                if inpt == '':
-                    os.chdir("..")
-                    continue
-                selected = files[inpt - 1]
-                if os.path.isdir("./" + selected):
-                    os.chdir(selected)
-                    continue
-                return selected
-
-        selected_file = set_file(path)
-        if selected_file is None:
-            return
-        file_abs = os.path.abspath(selected_file).replace(selected_file, "")
-        os.chdir(cwd)
-        return file_abs, selected_file
 
 
 class TeleCisc:
