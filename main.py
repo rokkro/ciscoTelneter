@@ -16,7 +16,7 @@ CONFIGS_ROOT_DIR = ""
 
 class TeleCisc:
     PORT = 23
-    STORE_PASSWD = False
+    STORE_PASSWD = True
     DEBUG_MODE = False
     READ_TIMEOUT = 3
     CONNECT_TIMEOUT = 10
