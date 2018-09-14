@@ -284,6 +284,7 @@ class TeleCisc:
             self.ios_login_and_elevate()
             # Enter TCL shell, write config file to temporary file
             self.ios_tclsh()
+            prompt_for_reload = False
             if not input("Try to copy this config to the startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
                 if not input("Try to copy this config to the running-config instead? [y/n]:").strip().lower() in ['y',
                                                                                                           'yes']:
@@ -293,11 +294,13 @@ class TeleCisc:
                     self.ios_copy_to_config(config_to_copy_to="running-config")
             else:
                 # Copy temporary file to startup-config
+                prompt_for_reload = True
                 self.ios_copy_to_config(config_to_copy_to="startup-config")
             # Remove temporary file
             self.ios_remove_temp_file()
-            if input("Reload device to use new config? [y/n]:").strip().lower() in ['y', 'yes']:
+            if prompt_for_reload and input("Reload device to use new config? [y/n]:").strip().lower() in ['y', 'yes']:
                 self.ios_reload()
+            print("DONE!")
             quit()
         except (ConnectionAbortedError, EOFError) as e:
             print("Telnet connection died:", e)
