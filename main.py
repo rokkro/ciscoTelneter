@@ -285,7 +285,7 @@ class TeleCisc:
                 self.ios_remove_temp_file()
                 if input("Reload device to use new config? [y/n]:").strip().lower() in ['y', 'yes']:
                     self.ios_reload()
-                    quit()
+                quit()
             except (ConnectionAbortedError, EOFError) as e:
                 print("Telnet connection died:", e)
 
