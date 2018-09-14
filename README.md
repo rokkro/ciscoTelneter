@@ -1,11 +1,9 @@
 # ciscoTelneter
 Script to simplify older Cisco switch/router config flashing without tftp.
 
-This is used for Cisco switches and routers running IOS 12.X - this script probably won't work right with newer or older versions.
+This is used for Cisco switches and routers running IOS 12.X - this script probably won't work right with newer or older versions. This script is prone to breakage because of how different devices work.
 
-## WIP!
-
-This uses Telnet, so it's not secure. It's intended to be used in a setting where switch and router security are not major concerns, such as an isolated student networking lab.  
+It uses Telnet, so it's not secure. It's intended to be used in a setting where switch and router security are not major concerns, such as an isolated student networking lab.  
 
 To use: 
 
