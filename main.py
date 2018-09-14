@@ -11,7 +11,7 @@ import socket
 
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
 # You can use forward slashes instead of backslashes on Windows
-CONFIGS_ROOT_DIR = "//ATLAS/Repos/Cisco Configurations/Static"
+CONFIGS_ROOT_DIR = ""
 
 
 class TeleCisc:
@@ -35,12 +35,14 @@ class TeleCisc:
         self.mode = self.UNPRIVILEGED
 
     def ios_change_term_length(self, length):
+        # Change terminal length to selected value. length = 0 is probably what you want.
+        # Prevents --more-- prompt from showing, which causes issues with CRLFs
         print("Changing terminal length...")
-        # Prevents --more-- prompt from showing, causing issues with CRLFs
         self.connection.write(("terminal length " + str(length)).encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
 
     def ios_fetch_and_store_conf(self, file_name, store_list, view_command="more"):
+        # Read a file (file_name) using the view_command. Store every line of that file in store_list
         # view_command should be "more" for files in flash, and "show" for startup-config, running-config, etc.
         print("\n---Reading file", file_name + "---")
         if self.mode == self.UNPRIVILEGED:
@@ -64,6 +66,7 @@ class TeleCisc:
             store_list.append(line)
 
     def ios_login_and_elevate(self):
+        # Get through username and password prompts and enter privileged mode.
         print("\n---CLI Login---")
         while True:
             line = self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
@@ -139,6 +142,7 @@ class TeleCisc:
         print(self.config_list_tmp)
 
     def ios_copy_to_config(self, temporary_file="temp.txt", config_to_copy_to="startup-config"):
+        # Use copy config to copy from temp file to selected config file
         print("---Copying", temporary_file, "to", config_to_copy_to + "---")
         self.connection.write(("copy " + self.TEMP_FILE_NAME + " " + config_to_copy_to).encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
@@ -158,6 +162,7 @@ class TeleCisc:
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
 
     def ios_reload(self):
+        # Reload OS so it uses the new config
         print("---Reloading device and exiting program---")
         self.connection.write("reload".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
@@ -168,6 +173,7 @@ class TeleCisc:
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
 
     def ios_remove_temp_file(self):
+        # Delete temporary file created to store config from tclsh
         print("Deleting " + self.TEMP_FILE_NAME + "...")
         self.connection.write(("delete flash:" + self.TEMP_FILE_NAME).encode("ascii") + b"\n")
         # Get through all the delete prompts
