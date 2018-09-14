@@ -272,40 +272,36 @@ class TeleCisc:
 
     def run(self):
         # Main function of program
-        while True:
-            # Select backup config file from disk
-            self.config_file_selection()
-            # Do a telnet connection to device
-            self.telnet_to_device()
-            if self.DEBUG_MODE:
-                # Print extra console output
-                self.connection.set_debuglevel(2)
-            try:
-                # Login, elevate privileges
-                self.ios_login_and_elevate()
-                # Enter TCL shell, write config file to temporary file
-                self.ios_tclsh()
-                if not input("Try to copy this config to the startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
-                    if not input("Try to copy this config to the running-config instead? [y/n]:").strip().lower() in ['y',
-                                                                                                              'yes']:
-                        self.host = ""
-                        self.connection = None
-                        self.username = ""
-                        self.password = ""
-                        continue
-                    else:
-                        self.ios_copy_to_config(config_to_copy_to="running-config")
+        # Select backup config file from disk
+        self.config_file_selection()
+        # Do a telnet connection to device
+        self.telnet_to_device()
+        if self.DEBUG_MODE:
+            # Print extra console output
+            self.connection.set_debuglevel(2)
+        try:
+            # Login, elevate privileges
+            self.ios_login_and_elevate()
+            # Enter TCL shell, write config file to temporary file
+            self.ios_tclsh()
+            if not input("Try to copy this config to the startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
+                if not input("Try to copy this config to the running-config instead? [y/n]:").strip().lower() in ['y',
+                                                                                                          'yes']:
+                    print("Operation cancelled!")
+                    quit()
                 else:
-                    # Copy temporary file to startup-config
-                    self.ios_copy_to_config(config_to_copy_to="startup-config")
-                # Remove temporary file
-                self.ios_remove_temp_file()
-                if input("Reload device to use new config? [y/n]:").strip().lower() in ['y', 'yes']:
-                    self.ios_reload()
-                quit()
-            except (ConnectionAbortedError, EOFError) as e:
-                print("Telnet connection died:", e)
-                quit()
+                    self.ios_copy_to_config(config_to_copy_to="running-config")
+            else:
+                # Copy temporary file to startup-config
+                self.ios_copy_to_config(config_to_copy_to="startup-config")
+            # Remove temporary file
+            self.ios_remove_temp_file()
+            if input("Reload device to use new config? [y/n]:").strip().lower() in ['y', 'yes']:
+                self.ios_reload()
+            quit()
+        except (ConnectionAbortedError, EOFError) as e:
+            print("Telnet connection died:", e)
+            quit()
 
 
 TeleCisc().run()
