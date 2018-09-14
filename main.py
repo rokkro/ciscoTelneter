@@ -197,6 +197,15 @@ class TeleCisc:
         while not self.host:
             self.host = input("IP or Hostname: ")
 
+    @staticmethod
+    def find_single_line_value(config_as_list, starts_with_field):
+        try:
+            value = "".join([i for i in config_as_list if i.strip().startswith(starts_with_field)][0])
+            value = value.replace(starts_with_field,"").strip()
+            return value
+        except IndexError:
+            return ""
+
     def config_file_selection(self):
         print("\n---Configuration File Selection---")
         if not CONFIGS_ROOT_DIR:
@@ -210,14 +219,18 @@ class TeleCisc:
                 print("Bad file selected:",e)
                 continue
             print(config_as_list)
-            host_name = "".join([i for i in config_as_list if "hostname" in i.strip()])
-            host_name = host_name.replace("hostname", "").strip()
+            host_name = self.find_single_line_value(config_as_list,"hostname")
+            passwd = self.find_single_line_value(config_as_list, "password")
             print("PATH: " + abs_path + file_name + "\nHOSTNAME: " + host_name if host_name else "(not found in file)")
             good_file = input("Continue using this file? [y/n]:")
             if good_file.strip().lower() in ["y", "yes"]:
                 self.config_file = config_as_list
                 self.config_file_path = abs_path
                 self.config_file_name = file_name
+                if passwd:
+                    use_this_pass = input("Password found as plaintext in config. Try to use it to log in? [y/n]:")
+                    if use_this_pass.strip().lower() in ["y","yes"]:
+                        self.password = passwd
                 if host_name:
                     use_this_host = input("Attempt to connect to device with this hostname? [y/n]:")
                     if use_this_host.strip().lower() in ["y", "yes"]:
@@ -225,7 +238,6 @@ class TeleCisc:
                 break
             else:
                 continue
-        print("File selected!")
 
     def telnet_to_device(self):
         print("\n---Device Connection---")
