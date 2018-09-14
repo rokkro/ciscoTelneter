@@ -264,21 +264,17 @@ class TeleCisc:
         print("Attempting connection to " + self.host + "...")
         try:
             self.connection = Telnet(self.host, self.PORT, timeout=self.CONNECT_TIMEOUT)
+            if self.DEBUG_MODE:
+                # Print extra console output
+                self.connection.set_debuglevel(2)
         except (socket.gaierror, socket.timeout) as e:
             # Kill connection when it fails
             print("Connection to host failed:", e)
             quit()
         print("Connection Succeeded!\nWaiting for log in prompt...")
 
-    def run(self):
-        # Main function of program
-        # Select backup config file from disk
-        self.config_file_selection()
-        # Do a telnet connection to device
-        self.telnet_to_device()
-        if self.DEBUG_MODE:
-            # Print extra console output
-            self.connection.set_debuglevel(2)
+    def interact_with_device(self):
+        # Calls device interaction functions, prompts user
         try:
             # Login, elevate privileges
             self.ios_login_and_elevate()
@@ -305,6 +301,17 @@ class TeleCisc:
         except (ConnectionAbortedError, EOFError) as e:
             print("Telnet connection died:", e)
             quit()
+
+    def run(self):
+        # -------------------------
+        # Main function of program.
+        # -------------------------
+        # Select backup config file from disk
+        self.config_file_selection()
+        # Do a telnet connection to device
+        self.telnet_to_device()
+        # Send/receive commands over telnet
+        self.interact_with_device()
 
 
 TeleCisc().run()
