@@ -234,6 +234,7 @@ class TeleCisc:
         # Prompt for whether or not file should be used. Prompt for usage of hostname or password from config file
         host_name = self.find_single_line_value(config_as_list, "hostname")
         passwd = self.find_single_line_value(config_as_list, "password")
+        username = self.find_single_line_value(config_as_list, "username")
         print("PATH: " + abs_path + file_name + "\nHOSTNAME: " + host_name if host_name else "(not found in file)")
         good_file = input("Continue using this file? [y/n]:")
         if good_file.strip().lower() in ["y", "yes"]:
@@ -244,6 +245,10 @@ class TeleCisc:
                 use_this_host = input("Attempt to connect to device with this hostname? [y/n]:")
                 if use_this_host.strip().lower() in ["y", "yes"]:
                     self.host = host_name
+            if username:
+                use_this_username = input("Username found in config. Try to use it to log in? [y/n]:")
+                if use_this_username.strip().lower() in ["y", "yes"]:
+                    self.username = username
             if passwd:
                 use_this_pass = input("Password found as plaintext in config. Try to use it to log in? [y/n]:")
                 if use_this_pass.strip().lower() in ["y", "yes"]:
