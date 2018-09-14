@@ -11,12 +11,11 @@ import socket
 
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
 # You can use forward slashes instead of backslashes on Windows
-CONFIGS_ROOT_DIR = ""
+CONFIGS_ROOT_DIR = "//ATLAS/Repos/Cisco Configurations/Static"
 
 
 class TeleCisc:
     PORT = 23
-    STORE_PASSWD = True
     DEBUG_MODE = False
     READ_TIMEOUT = 3
     CONNECT_TIMEOUT = 10
@@ -27,7 +26,7 @@ class TeleCisc:
     def __init__(self):
         self.username = ""
         self.host = ""
-        self.password = ""  # Only used if STORE_PASSWD is True
+        self.password = ""
         self.connection = None
         self.config_list_tmp = []
         self.config_file = []
@@ -183,14 +182,14 @@ class TeleCisc:
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
 
     def input_password(self):
+        # Use getpass() to prompt for user to enter password unless self.password already has something in it
         passwd = ""
-        if self.STORE_PASSWD and self.password:
+        if self.password:
             return self.password
         while not passwd:
             # getpass() does not work in normal IDE, use debug mode or the command line
             passwd = getpass.getpass('Password: ')
-        if self.STORE_PASSWD:
-            self.password = passwd
+        self.password = passwd
         return passwd
 
     def input_host(self):
@@ -199,6 +198,8 @@ class TeleCisc:
 
     @staticmethod
     def find_single_line_value(config_as_list, starts_with_field):
+        # Look inside list for element str that starts with starts_with_field value, return it.
+        #   return empty str if nothing found
         try:
             value = "".join([i for i in config_as_list if i.strip().startswith(starts_with_field)][0])
             value = value.replace(starts_with_field,"").strip()
@@ -207,54 +208,59 @@ class TeleCisc:
             return ""
 
     def config_file_selection(self):
+        # Display menu, prompt for file selection. Get config
         print("\n---Configuration File Selection---")
         if not CONFIGS_ROOT_DIR:
             print("***Change CONFIGS_ROOT_DIR in the script to a config file location!***")
-        while True:
+        file_selected = False
+        while not file_selected:
             abs_path, file_name = Menu().get_path_menu(CONFIGS_ROOT_DIR)
-            # Have to strip here
+            # Remove CRLF without stripping spaces
             try:
                 config_as_list = list(i.replace("\n", "").replace("\r", "") for i in open(abs_path + file_name))
             except UnicodeDecodeError as e:
                 print("Bad file selected:",e)
                 continue
             print(config_as_list)
-            host_name = self.find_single_line_value(config_as_list,"hostname")
-            passwd = self.find_single_line_value(config_as_list, "password")
-            print("PATH: " + abs_path + file_name + "\nHOSTNAME: " + host_name if host_name else "(not found in file)")
-            good_file = input("Continue using this file? [y/n]:")
-            if good_file.strip().lower() in ["y", "yes"]:
-                self.config_file = config_as_list
-                self.config_file_path = abs_path
-                self.config_file_name = file_name
-                if passwd:
-                    use_this_pass = input("Password found as plaintext in config. Try to use it to log in? [y/n]:")
-                    if use_this_pass.strip().lower() in ["y","yes"]:
-                        self.password = passwd
-                if host_name:
-                    use_this_host = input("Attempt to connect to device with this hostname? [y/n]:")
-                    if use_this_host.strip().lower() in ["y", "yes"]:
-                        self.host = host_name
-                break
-            else:
-                continue
+            file_selected = self.config_file_selection_prompts(config_as_list,abs_path,file_name)
+
+    def config_file_selection_prompts(self, config_as_list, abs_path, file_name):
+        # Prompt for whether or not file should be used. Prompt for usage of hostname or password from config file
+        host_name = self.find_single_line_value(config_as_list, "hostname")
+        passwd = self.find_single_line_value(config_as_list, "password")
+        print("PATH: " + abs_path + file_name + "\nHOSTNAME: " + host_name if host_name else "(not found in file)")
+        good_file = input("Continue using this file? [y/n]:")
+        if good_file.strip().lower() in ["y", "yes"]:
+            self.config_file = config_as_list
+            self.config_file_path = abs_path
+            self.config_file_name = file_name
+            if host_name:
+                use_this_host = input("Attempt to connect to device with this hostname? [y/n]:")
+                if use_this_host.strip().lower() in ["y", "yes"]:
+                    self.host = host_name
+            if passwd:
+                use_this_pass = input("Password found as plaintext in config. Try to use it to log in? [y/n]:")
+                if use_this_pass.strip().lower() in ["y", "yes"]:
+                    self.password = passwd
+            return True
+        else:
+            return False
 
     def telnet_to_device(self):
+        # Create telnet connection to host
         print("\n---Device Connection---")
         self.input_host()
         print("Attempting connection to " + self.host + "...")
         try:
             self.connection = Telnet(self.host, self.PORT, timeout=self.CONNECT_TIMEOUT)
-        except socket.gaierror as e:
+        except (socket.gaierror, socket.timeout) as e:
             # Kill connection when it fails
-            print("Connection to host failed:", e)
-            quit()
-        except socket.timeout as e:
             print("Connection to host failed:", e)
             quit()
         print("Connection Succeeded!\nWaiting for log in prompt...")
 
     def run(self):
+        # Main function of program
         while True:
             # Select backup config file from disk
             self.config_file_selection()
@@ -288,6 +294,7 @@ class TeleCisc:
                 quit()
             except (ConnectionAbortedError, EOFError) as e:
                 print("Telnet connection died:", e)
+                quit()
 
 
 TeleCisc().run()
