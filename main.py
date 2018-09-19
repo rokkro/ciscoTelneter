@@ -82,8 +82,8 @@ class TeleCisc:
             elif "Password:" in line.decode():
                 self.connection.write(self.input_password().encode('ascii') + b"\n")
                 continue
-            elif "% Bad" in line.decode():
-                print("Bad Password!")
+            elif "% Bad" in line.decode() or "% Login invalid" in line.decode():
+                print("Bad Login!")
                 self.password = ""
                 self.username = ""
                 continue
@@ -209,7 +209,7 @@ class TeleCisc:
         try:
             value = "".join([i for i in config_as_list if i.strip().startswith(starts_with_field)][0])
             value = value.replace(starts_with_field,"").strip()
-            value = value.split(" ")[0] # Ensure there isn't extra garbage in the same line
+            value = value.split(" ")[0].strip() # Ensure there isn't extra garbage in the same line
             return value
         except IndexError:
             return ""
@@ -267,7 +267,7 @@ class TeleCisc:
             self.connection = Telnet(self.host, self.PORT, timeout=self.CONNECT_TIMEOUT)
             if self.DEBUG_MODE:
                 # Print extra console output
-                self.connection.set_debuglevel(2)
+                self.connection.set_debuglevel(1)
         except (socket.gaierror, socket.timeout) as e:
             # Kill connection when it fails
             print("Connection to host failed:", e)
