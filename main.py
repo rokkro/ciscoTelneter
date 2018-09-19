@@ -77,7 +77,7 @@ class TeleCisc:
                 while not self.username:
                     self.username = input("Username: ")
                 self.connection.write(self.username.encode('ascii') + b"\n")
-                self.connection.interact()
+                # self.connection.interact()
                 continue
             elif "Password:" in line.decode():
                 self.connection.write(self.input_password().encode('ascii') + b"\n")
@@ -209,6 +209,7 @@ class TeleCisc:
         try:
             value = "".join([i for i in config_as_list if i.strip().startswith(starts_with_field)][0])
             value = value.replace(starts_with_field,"").strip()
+            value = value.split(" ")[0] # Ensure there isn't extra garbage in the same line
             return value
         except IndexError:
             return ""
