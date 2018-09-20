@@ -20,6 +20,7 @@ class TeleCisc:
     READ_TIMEOUT = 3
     CONNECT_TIMEOUT = 10
     TEMP_FILE_NAME = "temp.txt"
+    DELETE_TEMP_FILE = True
     PRIVILEGED = "privileged"
     UNPRIVILEGED = "unprivileged"
 
@@ -295,7 +296,8 @@ class TeleCisc:
                 prompt_for_reload = True
                 self.ios_copy_to_config(config_to_copy_to="startup-config")
             # Remove temporary file
-            self.ios_remove_temp_file()
+            if self.DELETE_TEMP_FILE:
+                self.ios_remove_temp_file()
             if prompt_for_reload and input("Reload device to use new config? [y/n]:").strip().lower() in ['y', 'yes']:
                 self.ios_reload()
             print("DONE!")
