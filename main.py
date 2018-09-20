@@ -308,7 +308,7 @@ class TeleCisc:
     def strip_safely(line):
         if type(line) is str:
             return line.replace("\r","").replace("\n", "").replace("\x03", "").replace("\x00","")
-        return line.replace(b"\r", b"").replace(b"\n", b"").replace(b"\x03", b"").replace("\x00","")
+        return line.replace(b"\r", b"").replace(b"\n", b"").replace(b"\x03", b"").replace(b"\x00",b"")
 
     def run(self):
         # -------------------------
