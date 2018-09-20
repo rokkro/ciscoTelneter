@@ -62,7 +62,7 @@ class TeleCisc:
             if not line.strip():
                 break
             # Remove CRLFs without using strip(), which removes all spacing.
-            line = line.replace(b"\r", b"").replace(b"\n", b"").decode()
+            line = self.strip_safely(line).decode()
             store_list.append(line)
 
     def ios_login_and_elevate(self):
@@ -192,6 +192,7 @@ class TeleCisc:
         passwd = ""
         if self.password:
             return self.password
+        print("Displaying password prompt. If it does not show, use a different terminal application.\n")
         while not passwd:
             # getpass() does not work in normal IDE, use debug mode or the command line
             passwd = getpass.getpass('Password: ')
@@ -224,7 +225,7 @@ class TeleCisc:
             abs_path, file_name = Menu().get_path_menu(CONFIGS_ROOT_DIR)
             # Remove CRLF without stripping spaces
             try:
-                config_as_list = list(i.replace("\n", "").replace("\r", "") for i in open(abs_path + file_name))
+                config_as_list = list(self.strip_safely(i) for i in open(abs_path + file_name))
             except UnicodeDecodeError as e:
                 print("Bad file selected:",e)
                 continue
@@ -302,6 +303,12 @@ class TeleCisc:
         except (ConnectionAbortedError, EOFError) as e:
             print("Telnet connection died:", e)
             quit()
+
+    @staticmethod
+    def strip_safely(line):
+        if type(line) is str:
+            return line.replace("\r","").replace("\n", "").replace("\x03", "").replace("\x00","")
+        return line.replace(b"\r", b"").replace(b"\n", b"").replace(b"\x03", b"").replace("\x00","")
 
     def run(self):
         # -------------------------
