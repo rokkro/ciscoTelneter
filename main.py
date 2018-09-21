@@ -23,19 +23,17 @@ class TeleCisc:
     CONNECT_TIMEOUT = 10
     TEMP_FILE_NAME = "temp.txt"
     DELETE_TEMP_FILE = True
-    PRIVILEGED = "privileged"
-    UNPRIVILEGED = "unprivileged"
 
     def __init__(self):
         self.username = ""
         self.host = ""
         self.password = ""
+        self.is_privileged_user = False
         self.connection = None
         self.config_list_tmp = []
         self.config_file = []
         self.config_file_name = ""
         self.config_file_path = ""
-        self.mode = self.UNPRIVILEGED
 
     def ios_change_term_length(self, length):
         # Change terminal length to selected value. length = 0 is probably what you want.
@@ -48,7 +46,7 @@ class TeleCisc:
         # Read a file (file_name) using the view_command. Store every line of that file in store_list
         # view_command should be "more" for files in flash, and "show" for startup-config, running-config, etc.
         print("\n---Reading file", file_name + "---")
-        if self.mode == self.UNPRIVILEGED:
+        if not self.is_privileged_user:
             self.ios_login_and_elevate()
         self.ios_change_term_length(0)
         self.connection.write((view_command + " " + file_name).encode("ascii") + b"\n")
@@ -92,12 +90,12 @@ class TeleCisc:
                 continue
             # MODE STUFF #
             elif ">" in line.decode():
-                self.mode = self.UNPRIVILEGED
+                self.is_privileged_user = False
                 print("Logged in...\nEntering Privileged Mode...")
                 self.connection.write("enable".encode("ascii") + b"\n")
                 continue
             elif "#" in line.decode():
-                self.mode = self.PRIVILEGED
+                self.is_privileged_user = True
                 print("Entered Privileged Mode.")
                 break
             else:
@@ -110,7 +108,7 @@ class TeleCisc:
         # This is done instead of using the configuration mode, as we want to add a fresh config file and not
         #   have to worry about leftover settings being retained.
         print("\n---Tclsh File Creation---")
-        if self.mode == self.UNPRIVILEGED:
+        if not self.is_privileged_user:
             self.ios_login_and_elevate()
         print("Entering tcl shell...")
         self.connection.read_until(b"\r\n", timeout=self.READ_TIMEOUT)  # Make written command work
