@@ -4,8 +4,10 @@
 # Used for resetting Cisco IOS 12.X switches/routers.
 # This script is not yet fully automatic at the moment,since a new config file needs to be selected using the menu UI.
 # Running this in an IDE will probably not display the password prompt, given how getpass() works.
+
 from mini_menu import Menu
 from telnetlib import Telnet
+from encodings.cp1252 import decoding_table
 import getpass
 import socket
 
@@ -23,14 +25,6 @@ class TeleCisc:
     DELETE_TEMP_FILE = True
     PRIVILEGED = "privileged"
     UNPRIVILEGED = "unprivileged"
-
-    # Not extensive list, but enough to cover most cases
-    TELNET_CHARS = [
-        "\xff", "\xfc", "\x01",
-        "\x03", "\x18", "\x1f",
-        "\xfb", "\xfe", "\x00",
-        "\xfd", "\xfa", "\x02",
-    ]
 
     def __init__(self):
         self.username = ""
@@ -70,8 +64,8 @@ class TeleCisc:
             # If empty line, assume done reading file
             if not line.strip():
                 break
-            # Remove CRLFs without using strip(), which removes all spacing.
-            line = self.remove_telnet_chars(line).decode()
+            line = line.decode()
+            line = self.remove_telnet_chars(line)
             store_list.append(line)
 
     def ios_login_and_elevate(self):
@@ -201,7 +195,7 @@ class TeleCisc:
         passwd = ""
         if self.password:
             return self.password
-        print("Displaying password prompt. If it does not show, use a different terminal application.\n")
+        # print("Displaying password prompt. If it does not show, use a different terminal application.\n")
         while not passwd:
             # getpass() does not work in normal IDE, use debug mode or the command line
             passwd = getpass.getpass('Password: ')
@@ -314,19 +308,28 @@ class TeleCisc:
             print("Telnet connection died:", e)
             quit()
 
+    @staticmethod
+    def string_to_bytes_to_string(line, encoding='utf-8'):
+        # Hacky way to characters recognizable and replaceable:
+        # Convert to bytes object with utf-8 encoding
+        # Make it a (bytes) string: b'some string'
+        # Splice string to remove the b''
+        line = bytes(line,encoding=encoding,errors='ignore')
+        line = str(line)
+        line = line[2:len(line) - 1]
+        return line
+
     def remove_telnet_chars(self, line):
         # Removes \r, \n, and various other things that may cause issues
         #   during sending/receiving of lines, like \x03
-        if type(line) is str:
-            line = line.replace("\r","").replace("\n", "")
-            for character in self.TELNET_CHARS:
-                line = line.replace(character,"")
-            return line
-        else:  # is a byte string
-            line = line.replace(b"\r", b"").replace(b"\n", b"")
-            for character in self.TELNET_CHARS:
-                line = line.replace(str.encode(character),b"")
-            return line
+        line = line.replace("\r", "").replace("\n", "")
+        for character in decoding_table:
+            # Convert characters into readable hex string, like \x03 or \u201c
+            character_readable = self.string_to_bytes_to_string(character)
+            if character_readable.startswith('\\u') or character_readable.startswith('\\x'):
+                # Remove front slashes since encoding messes them up. Re-add slashes later.
+                line = line.replace(character, "")
+        return line
 
     def run(self):
         # -------------------------
