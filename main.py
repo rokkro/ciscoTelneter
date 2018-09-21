@@ -16,13 +16,21 @@ CONFIGS_ROOT_DIR = ""
 
 class TeleCisc:
     PORT = 23
-    DEBUG_MODE = False
+    SHOW_TELNET_OUTPUT = False
     READ_TIMEOUT = 3
     CONNECT_TIMEOUT = 10
     TEMP_FILE_NAME = "temp.txt"
     DELETE_TEMP_FILE = True
     PRIVILEGED = "privileged"
     UNPRIVILEGED = "unprivileged"
+
+    # Not extensive list, but enough to cover most cases
+    TELNET_CHARS = [
+        "\xff", "\xfc", "\x01",
+        "\x03", "\x18", "\x1f",
+        "\xfb", "\xfe", "\x00",
+        "\xfd", "\xfa", "\x02",
+    ]
 
     def __init__(self):
         self.username = ""
@@ -63,7 +71,7 @@ class TeleCisc:
             if not line.strip():
                 break
             # Remove CRLFs without using strip(), which removes all spacing.
-            line = self.strip_safely(line).decode()
+            line = self.remove_telnet_chars(line).decode()
             store_list.append(line)
 
     def ios_login_and_elevate(self):
@@ -226,7 +234,7 @@ class TeleCisc:
             abs_path, file_name = Menu().get_path_menu(CONFIGS_ROOT_DIR)
             # Remove CRLF without stripping spaces
             try:
-                config_as_list = list(self.strip_safely(i) for i in open(abs_path + file_name))
+                config_as_list = list(self.remove_telnet_chars(i) for i in open(abs_path + file_name))
             except UnicodeDecodeError as e:
                 print("Bad file selected:",e)
                 continue
@@ -267,7 +275,7 @@ class TeleCisc:
         print("Attempting connection to " + self.host + "...")
         try:
             self.connection = Telnet(self.host, self.PORT, timeout=self.CONNECT_TIMEOUT)
-            if self.DEBUG_MODE:
+            if self.SHOW_TELNET_OUTPUT:
                 # Print extra console output
                 self.connection.set_debuglevel(1)
         except (socket.gaierror, socket.timeout) as e:
@@ -306,11 +314,19 @@ class TeleCisc:
             print("Telnet connection died:", e)
             quit()
 
-    @staticmethod
-    def strip_safely(line):
+    def remove_telnet_chars(self, line):
+        # Removes \r, \n, and various other things that may cause issues
+        #   during sending/receiving of lines, like \x03
         if type(line) is str:
-            return line.replace("\r","").replace("\n", "").replace("\x03", "").replace("\x00","")
-        return line.replace(b"\r", b"").replace(b"\n", b"").replace(b"\x03", b"").replace(b"\x00",b"")
+            line = line.replace("\r","").replace("\n", "")
+            for character in self.TELNET_CHARS:
+                line = line.replace(character,"")
+            return line
+        else:  # is a byte string
+            line = line.replace(b"\r", b"").replace(b"\n", b"")
+            for character in self.TELNET_CHARS:
+                line = line.replace(str.encode(character),b"")
+            return line
 
     def run(self):
         # -------------------------
