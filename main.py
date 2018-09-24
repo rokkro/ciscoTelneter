@@ -11,9 +11,11 @@ from encodings.cp1252 import decoding_table
 import getpass
 import socket
 
+##################################################################
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
 # You can use forward slashes instead of backslashes on Windows
 CONFIGS_ROOT_DIR = ""
+##################################################################
 
 
 class TeleCisc:
@@ -34,6 +36,7 @@ class TeleCisc:
         self.config_file = []
         self.config_file_name = ""
         self.config_file_path = ""
+        self.configs_root_dir = CONFIGS_ROOT_DIR
 
     def ios_change_term_length(self, length):
         # Change terminal length to selected value. length = 0 is probably what you want.
@@ -219,11 +222,16 @@ class TeleCisc:
     def config_file_selection(self):
         # Display menu, prompt for file selection. Get config
         print("\n---Configuration File Selection---")
-        if not CONFIGS_ROOT_DIR:
+        if not self.configs_root_dir:
             print("***Change CONFIGS_ROOT_DIR in the script to a config file location!***")
+            self.configs_root_dir = input("Enter an absolute path to a config file repository (not a config file itself):")
         file_selected = False
         while not file_selected:
-            abs_path, file_name = Menu().get_path_menu(CONFIGS_ROOT_DIR)
+            try:
+                abs_path, file_name = Menu().get_path_menu(self.configs_root_dir)
+            except Exception as e:
+                print("Config path issue:",e,"\nExiting...")
+                quit()
             # Remove CRLF without stripping spaces
             try:
                 config_as_list = list(self.remove_telnet_chars(i) for i in open(abs_path + file_name))
