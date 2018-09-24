@@ -245,11 +245,11 @@ class TeleCisc:
             self.config_file_path = abs_path
             self.config_file_name = file_name
             if host_name:
-                use_this_host = input("Attempt to connect to device with this hostname? [y/n]:")
+                use_this_host = input("Attempt to connect to device with hostname '" + host_name + "'? [y/n]:")
                 if use_this_host.strip().lower() in ["y", "yes"]:
                     self.host = host_name
             if username:
-                use_this_username = input("Username found in config. Try to use it to log in? [y/n]:")
+                use_this_username = input("Username '" + username + "' found in config. Try to use it to log in? [y/n]:")
                 if use_this_username.strip().lower() in ["y", "yes"]:
                     self.username = username
             if passwd:
