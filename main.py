@@ -308,7 +308,7 @@ class TeleCisc:
 
     @staticmethod
     def string_to_bytes_to_string(line, encoding='utf-8'):
-        # Hacky way to characters recognizable and replaceable:
+        # Hacky way to make characters recognizable and replaceable:
         # Convert to bytes object with utf-8 encoding
         # Make it a (bytes) string: b'some string'
         # Splice string to remove the b''
