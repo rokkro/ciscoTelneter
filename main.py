@@ -86,7 +86,7 @@ class TeleCisc:
             elif "Password:" in line.decode():
                 self.connection.write(self.input_password().encode('ascii') + b"\n")
                 continue
-            elif "% Bad" in line.decode() or "% Login invalid" in line.decode():
+            elif "% Bad" in line.decode() or "% Login invalid" in line.decode() or "% Access denied" in line.decode():
                 print("Bad Login!")
                 self.password = ""
                 self.username = ""
