@@ -148,7 +148,7 @@ class TeleCisc:
 
     def ios_copy_to_config(self, temporary_file="temp.txt", config_to_copy_to="startup-config"):
         # Use copy config to copy from temp file to selected config file
-        print("---Copying", temporary_file, "to", config_to_copy_to + "---")
+        print("\n---Copying", temporary_file, "to", config_to_copy_to + "---")
         self.connection.write(("copy " + self.TEMP_FILE_NAME + " " + config_to_copy_to).encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         self.connection.write(config_to_copy_to.encode("ascii") + b"\n")
@@ -168,7 +168,7 @@ class TeleCisc:
 
     def ios_reload(self):
         # Reload OS so it uses the new config
-        print("---Reloading device and exiting program---")
+        print("\n---Reloading device and exiting program---")
         self.connection.write("reload".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
@@ -179,7 +179,7 @@ class TeleCisc:
 
     def ios_remove_temp_file(self):
         # Delete temporary file created to store config from tclsh
-        print("---Deleting " + self.TEMP_FILE_NAME + "---")
+        print("\n---Deleting " + self.TEMP_FILE_NAME + "---")
         self.connection.write(("delete flash:" + self.TEMP_FILE_NAME).encode("ascii") + b"\n")
         # Get through all the delete prompts
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
@@ -311,14 +311,14 @@ class TeleCisc:
             if input("Try to copy this config to the running-config? [y/n]:").strip().lower() in ['y','yes']:
                 # Copy temporary file to running-config
                 # Don't prompt for reload if copied config to both running-config and startup-config
-                prompt_for_reload = False if prompt_for_reload == True else True
+                prompt_for_reload = False
                 self.ios_copy_to_config(config_to_copy_to="running-config")
             # Remove temporary file
             if self.DELETE_TEMP_FILE:
                 self.ios_remove_temp_file()
             if prompt_for_reload and input("Reload device to use new startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
                 self.ios_reload()
-            print("DONE!")
+            print("\n---DONE!---")
             quit()
         except (ConnectionAbortedError, EOFError) as e:
             print("Telnet connection died:", e)
