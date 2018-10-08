@@ -179,7 +179,8 @@ class TeleCisc:
 
     def ios_remove_temp_file(self):
         # Delete temporary file created to store config from tclsh
-        print("\n---Deleting " + self.TEMP_FILE_NAME + "---")
+        print("\n---Cleanup---")
+        print("Deleting " + self.TEMP_FILE_NAME + "...")
         self.connection.write(("delete flash:" + self.TEMP_FILE_NAME).encode("ascii") + b"\n")
         # Get through all the delete prompts
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
@@ -243,7 +244,7 @@ class TeleCisc:
             # Remove CRLF without stripping spaces
             try:
                 config_as_list = list(self.remove_telnet_chars(i) for i in open(abs_path + file_name))
-            except UnicodeDecodeError as e:
+            except (UnicodeDecodeError, OSError) as e:
                 print("Bad file selected:", e)
                 continue
             except FileNotFoundError as e:
@@ -257,23 +258,23 @@ class TeleCisc:
         host_name = self.find_single_line_value(config_as_list, "hostname")
         passwd = self.find_single_line_value(config_as_list, "password")
         username = self.find_single_line_value(config_as_list, "username")
-        print("PATH: " + abs_path + file_name + "\nHOSTNAME: " + host_name if host_name else "(not found in file)")
-        good_file = input("Continue using this file? [y/n]:")
+        print("\nPATH: " + abs_path + file_name + "\nHOSTNAME: " + host_name if host_name else "(not found in file)")
+        good_file = input("\nContinue using this file? [y/n]:")
         if good_file.strip().lower() in ["y", "yes"]:
             self.config_file = config_as_list
             self.config_file_path = abs_path
             self.config_file_name = file_name
             if host_name:
-                use_this_host = input("Attempt to connect to device with hostname '" + host_name + "'? [y/n]:")
+                use_this_host = input("\nAttempt to connect to device with hostname '" + host_name + "'? [y/n]:")
                 if use_this_host.strip().lower() in ["y", "yes"]:
                     self.host = host_name
             if username:
                 use_this_username = input(
-                    "Username '" + username + "' found in config. Try to use it to log in? [y/n]:")
+                    "\nUsername '" + username + "' found in config. Try to use it to log in? [y/n]:")
                 if use_this_username.strip().lower() in ["y", "yes"]:
                     self.username = username
             if passwd:
-                use_this_pass = input("Password found as plaintext in config. Try to use it to log in? [y/n]:")
+                use_this_pass = input("\nPassword found as plaintext in config. Try to use it to log in? [y/n]:")
                 if use_this_pass.strip().lower() in ["y", "yes"]:
                     self.password = passwd
             return True
@@ -304,11 +305,11 @@ class TeleCisc:
             # Enter TCL shell, write config file to temporary file
             self.ios_tclsh()
             prompt_for_reload = False
-            if input("Try to copy this config to the startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
+            if input("\nTry to copy this config to the startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
                 # Copy temporary file to startup-config
                 prompt_for_reload = True
                 self.ios_copy_to_config(config_to_copy_to="startup-config")
-            if input("Try to copy this config to the running-config? [y/n]:").strip().lower() in ['y','yes']:
+            if input("\nTry to copy this config to the running-config? [y/n]:").strip().lower() in ['y','yes']:
                 # Copy temporary file to running-config
                 # Don't prompt for reload if copied config to both running-config and startup-config
                 prompt_for_reload = False
