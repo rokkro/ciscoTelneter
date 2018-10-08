@@ -10,6 +10,7 @@ from telnetlib import Telnet
 from encodings.cp1252 import decoding_table
 import getpass
 import socket
+import os
 
 ##################################################################
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
@@ -213,8 +214,8 @@ class TeleCisc:
         #   return empty str if nothing found
         try:
             value = "".join([i for i in config_as_list if i.strip().startswith(starts_with_field)][0])
-            value = value.replace(starts_with_field,"").strip()
-            value = value.split(" ")[0].strip() # Ensure there isn't extra garbage in the same line
+            value = value.replace(starts_with_field, "").strip()
+            value = value.split(" ")[0].strip()  # Ensure there isn't extra garbage in the same line
             return value
         except IndexError:
             return ""
@@ -224,22 +225,32 @@ class TeleCisc:
         print("\n---Configuration File Selection---")
         if not self.configs_root_dir:
             print("***Change CONFIGS_ROOT_DIR in the script to a config file location!***")
-            self.configs_root_dir = input("Enter an absolute path to a config file repository (not a config file itself):")
-        file_selected = False
-        while not file_selected:
+            self.configs_root_dir = input("Enter an absolute path to a config file repository or a config file itself:")
+        use_this_file = False
+        while not use_this_file:
             try:
-                abs_path, file_name = Menu().get_path_menu(self.configs_root_dir)
+                if os.path.isdir(self.configs_root_dir):
+                    abs_path, file_name = Menu().get_path_menu(self.configs_root_dir)
+                    self.configs_root_dir = abs_path  # Move dir path here, in case user decides not to use file
+                else:
+                    abs_path = os.path.abspath(self.configs_root_dir)
+                    file_name = abs_path[abs_path.rfind("\\") + 1:]
+                    abs_path = abs_path.replace(file_name, "")
+                    self.configs_root_dir = abs_path  # Move dir path here, in case user decides not to use file
             except Exception as e:
-                print("Config path issue:",e,"\nExiting...")
+                print("Config path issue:", e, "\nExiting...")
                 quit()
             # Remove CRLF without stripping spaces
             try:
                 config_as_list = list(self.remove_telnet_chars(i) for i in open(abs_path + file_name))
             except UnicodeDecodeError as e:
-                print("Bad file selected:",e)
+                print("Bad file selected:", e)
+                continue
+            except FileNotFoundError as e:
+                print("File selected does not exist:", e)
                 continue
             print(config_as_list)
-            file_selected = self.config_file_selection_prompts(config_as_list,abs_path,file_name)
+            use_this_file = self.config_file_selection_prompts(config_as_list, abs_path, file_name)
 
     def config_file_selection_prompts(self, config_as_list, abs_path, file_name):
         # Prompt for whether or not file should be used. Prompt for usage of hostname or password from config file
@@ -257,7 +268,8 @@ class TeleCisc:
                 if use_this_host.strip().lower() in ["y", "yes"]:
                     self.host = host_name
             if username:
-                use_this_username = input("Username '" + username + "' found in config. Try to use it to log in? [y/n]:")
+                use_this_username = input(
+                    "Username '" + username + "' found in config. Try to use it to log in? [y/n]:")
                 if use_this_username.strip().lower() in ["y", "yes"]:
                     self.username = username
             if passwd:
@@ -294,7 +306,7 @@ class TeleCisc:
             prompt_for_reload = False
             if not input("Try to copy this config to the startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
                 if not input("Try to copy this config to the running-config instead? [y/n]:").strip().lower() in ['y',
-                                                                                                          'yes']:
+                                                                                                                  'yes']:
                     print("Operation cancelled!")
                     quit()
                 else:
@@ -320,7 +332,7 @@ class TeleCisc:
         # Convert to bytes object with utf-8 encoding
         # Make it a (bytes) string: b'some string'
         # Splice string to remove the b''
-        line = bytes(line,encoding=encoding,errors='ignore')
+        line = bytes(line, encoding=encoding, errors='ignore')
         line = str(line)
         line = line[2:len(line) - 1]
         return line
