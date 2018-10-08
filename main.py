@@ -179,7 +179,7 @@ class TeleCisc:
 
     def ios_remove_temp_file(self):
         # Delete temporary file created to store config from tclsh
-        print("Deleting " + self.TEMP_FILE_NAME + "...")
+        print("---Deleting " + self.TEMP_FILE_NAME + "---")
         self.connection.write(("delete flash:" + self.TEMP_FILE_NAME).encode("ascii") + b"\n")
         # Get through all the delete prompts
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
@@ -304,21 +304,19 @@ class TeleCisc:
             # Enter TCL shell, write config file to temporary file
             self.ios_tclsh()
             prompt_for_reload = False
-            if not input("Try to copy this config to the startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
-                if not input("Try to copy this config to the running-config instead? [y/n]:").strip().lower() in ['y',
-                                                                                                                  'yes']:
-                    print("Operation cancelled!")
-                    quit()
-                else:
-                    self.ios_copy_to_config(config_to_copy_to="running-config")
-            else:
+            if input("Try to copy this config to the startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
                 # Copy temporary file to startup-config
                 prompt_for_reload = True
                 self.ios_copy_to_config(config_to_copy_to="startup-config")
+            if input("Try to copy this config to the running-config? [y/n]:").strip().lower() in ['y','yes']:
+                # Copy temporary file to running-config
+                # Don't prompt for reload if copied config to both running-config and startup-config
+                prompt_for_reload = False if prompt_for_reload == True else True
+                self.ios_copy_to_config(config_to_copy_to="running-config")
             # Remove temporary file
             if self.DELETE_TEMP_FILE:
                 self.ios_remove_temp_file()
-            if prompt_for_reload and input("Reload device to use new config? [y/n]:").strip().lower() in ['y', 'yes']:
+            if prompt_for_reload and input("Reload device to use new startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
                 self.ios_reload()
             print("DONE!")
             quit()
