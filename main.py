@@ -2,7 +2,6 @@
 # This script is used in an isolated student/education environment.
 # It serves as a simple way for a lab assistant to reset device configurations after students do lab assignments.
 # Used for resetting Cisco IOS 12.X switches/routers.
-# This script is not yet fully automatic at the moment,since a new config file needs to be selected using the menu UI.
 # Running this in an IDE will probably not display the password prompt, given how getpass() works.
 
 from mini_menu import Menu
