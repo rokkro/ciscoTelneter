@@ -32,7 +32,6 @@ class TeleCisc:
         self.password = ""
         self.is_privileged_user = False
         self.connection = None
-        self.config_list_tmp = []
         self.config_file = []
         self.config_file_name = ""
         self.config_file_path = ""
@@ -45,9 +44,10 @@ class TeleCisc:
         self.connection.write(("terminal length " + str(length)).encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
 
-    def ios_fetch_and_store_conf(self, file_name, store_list, view_command="more"):
+    def ios_fetch_and_store_conf(self, file_name, view_command):
         # Read a file (file_name) using the view_command. Store every line of that file in store_list
         # view_command should be "more" for files in flash, and "show" for startup-config, running-config, etc.
+        store_list = []
         print("\n---Reading file", file_name + "---")
         if not self.is_privileged_user:
             self.ios_login_and_elevate()
@@ -68,6 +68,7 @@ class TeleCisc:
             line = line.decode()
             line = self.remove_telnet_chars(line)
             store_list.append(line)
+        return store_list
 
     def ios_login_and_elevate(self):
         # Get through username and password prompts and enter privileged mode.
@@ -141,9 +142,9 @@ class TeleCisc:
         self.connection.write("tclquit".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         # Read through temp.txt, put in a list to make sure everything was copied correctly
-        self.ios_fetch_and_store_conf(self.TEMP_FILE_NAME, self.config_list_tmp)
+        config_list_tmp = self.ios_fetch_and_store_conf(self.TEMP_FILE_NAME, "more")
         # Print contents of temp.txt
-        print(self.config_list_tmp)
+        print(config_list_tmp)
 
     def ios_copy_to_config(self, temporary_file="temp.txt", config_to_copy_to="startup-config"):
         # Use copy config to copy from temp file to selected config file
@@ -302,6 +303,7 @@ class TeleCisc:
             # Login, elevate privileges
             self.ios_login_and_elevate()
             # Enter TCL shell, write config file to temporary file
+            #input("[ir] - compare current running-config to selected file, [is] - compare current startup-config to selected file, [r] - replace config, [q] - quit.")
             self.ios_tclsh()
             prompt_for_reload = False
             if input("\nTry to copy this config to the startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
