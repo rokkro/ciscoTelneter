@@ -35,7 +35,7 @@ class Menu:
     def handle_special_input(current_input):
         if current_input == 'q':  # input 'q' to quit
             quit()
-        elif current_input == '':  # Returns space for menus to handle it.
+        elif current_input == '' or current_input == 'r':  # Returns space/'r' for menus to handle it.
             return current_input
         else:
             return None
@@ -93,7 +93,7 @@ class Menu:
             files = os.listdir("./")  # List files in current dir
             menu_display = self.gen_file_menu(files)
             user_input = self.get_menu(path, menu_display, "*Enter a file/dir number or [Enter] - go up a dir.\n>>>")
-            if user_input == '':  # Go up a dir if input is empty
+            if user_input == '' or user_input == 'r':  # Go up a dir if input is empty/'r'
                 os.chdir("..")
                 continue
             selected = files[user_input - 1]
