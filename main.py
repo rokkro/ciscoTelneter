@@ -14,7 +14,7 @@ import os
 ##################################################################
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
 # You can use forward slashes instead of backslashes on Windows
-CONFIGS_ROOT_DIR = ""
+CONFIGS_ROOT_DIR = "//ATLAS/Repos/Cisco Configurations/Static"
 ##################################################################
 
 
@@ -379,19 +379,21 @@ class UserMenu(Menu):
                 print("\nTELNET CONNECTION FAILURE:", e)
 
     def view_submenu(self):
+        def view_run():
+            print("\n".join(self.tele_instance.ios_fetch_and_store_conf("running-config", "show")))
+        def view_startup():
+            print("\n".join(self.tele_instance.ios_fetch_and_store_conf("startup-config", "show")))
+        def view_myfile():
+            print("\n".join(self.tele_instance.ios_fetch_and_store_conf(self.tele_instance.TEMP_FILE_NAME, "more")))
 
-        current_running = self.tele_instance.ios_fetch_and_store_conf("running-config", "show")
-        current_startup = self.tele_instance.ios_fetch_and_store_conf("startup-config", "show")
-        # View running-config
-        # View startup-config
-        # View selected file
         menu = {
-            1: "asdf",
-            2: "asdf",
-            3: "asdf"
+            1: view_run,
+            2: view_startup,
+            3: view_myfile
         }
+
         while True:
-            selected_option = Menu().get_menu("COMPARE",
+            selected_option = Menu().get_menu("VIEW",
             [
                 "View running-config.",
                 "View startup-config.",
