@@ -9,9 +9,12 @@ class Menu:
     def divider(self):  # ----------
         print('-' * self.horizontal_len)
 
+    def header(self, text):  # ---header text---
+        print(('-' * int((self.horizontal_len - len(text)) / 2)) + text + ('-' * int((self.horizontal_len - len(text)) /2)))
+
     def print_menu(self, head, menu):
         # Print menu, entries, divider
-        print(head)
+        self.header(head)
         for num, entry in enumerate(menu):  # Print entries
             print("[" + str(num + 1) + "] - " + str(entry))
         self.divider()
