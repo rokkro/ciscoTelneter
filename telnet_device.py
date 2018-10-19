@@ -81,6 +81,8 @@ class TeleCisco:
                 self.connection.write("\r\n".encode("ascii") + b"\n")
                 self.connection.read_until(b"\r\n", timeout=self.READ_TIMEOUT)
                 continue
+            if line.startswith(self.host + "#"):  # Lazy fix for occasional issue with commands being appended
+                continue
             line = remove_telnet_chars(line)
             store_list.append(line)
         return store_list
