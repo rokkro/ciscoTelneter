@@ -90,6 +90,11 @@ class TeleCisc:
             if not line.strip():
                 break
             line = line.decode()
+            if "Building" in line:
+                # Fix occasional issue where it gets stuck on "Building Configuration..."
+                self.connection.write("\r\n".encode("ascii") + b"\n")
+                self.connection.read_until(b"\r\n", timeout=self.READ_TIMEOUT)
+                continue
             line = remove_telnet_chars(line)
             store_list.append(line)
         return store_list
@@ -169,25 +174,19 @@ class TeleCisc:
         # Exit the tcl shell
         self.connection.write("tclquit".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
-        # Read through temp.txt, put in a list to make sure everything was copied correctly
-        config_list_tmp = self.ios_fetch_and_store_conf(self.TEMP_FILE_NAME, "more")
-        # Print contents of temp.txt
-        print(config_list_tmp)
 
     def ios_copy_to_config(self, config_to_copy_from, config_to_copy_to):
-        # Use copy config to copy from temp file to selected config file
+        # Use copy config to copy from one file to selected config file
         print("\n---Copying", config_to_copy_from, "to", config_to_copy_to + "---")
         self.connection.write(("copy " + config_to_copy_from + " " + config_to_copy_to).encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         self.connection.write(config_to_copy_to.encode("ascii") + b"\n")
         # Get through all the copy prompts
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        line = ""
+        while "copied" not in line:
+            line = self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+            line = line.decode()
+        print(line)
         self.connection.write(b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
@@ -196,13 +195,16 @@ class TeleCisc:
 
     def ios_reload(self):
         # Reload OS so it uses the new config
+        # TODO: Fix this!
         print("\n---Reloading device---")
         self.connection.write("reload".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
         line = self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-        if "yes" in line:
+        if "no" in line.decode():
             self.connection.write(b"yes\n")
+            self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
+            self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
@@ -224,6 +226,7 @@ class TeleCisc:
         self.connection.write(b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+        print("File deleted.")
 
     def input_password(self):
         # Use getpass() to prompt for user to enter password unless self.password already has something in it
@@ -252,7 +255,6 @@ class TeleCisc:
             return value
         except IndexError:
             return ""
-
 
     def config_file_selection_prompts(self, config_as_list, abs_path, file_name):
         # Prompt for whether or not file should be used. Prompt for usage of hostname or password from config file
@@ -298,6 +300,7 @@ class TeleCisc:
             return
         print("Connection Succeeded!")
 
+    '''
     def interact_with_device(self):
         # Calls device interaction functions, prompts user
         print("\nWaiting for log in prompt...")
@@ -327,20 +330,7 @@ class TeleCisc:
         except (ConnectionAbortedError, EOFError) as e:
             print("Telnet connection died:", e)
             quit()
-
-    def run(self):
-        # -------------------------
-        # Main function of program.
-        # -------------------------
-        # Select backup config file from disk
-        # self.config_file_selection() ### MOVED
-        # Do a telnet connection to device
-        # self.telnet_to_device() ### MOVED
-        # Send/receive commands over telnet
-        self.interact_with_device()
-
-
-#TeleCisc().run()
+    '''
 
 class UserMenu(Menu):
 
@@ -378,18 +368,32 @@ class UserMenu(Menu):
             except (ConnectionAbortedError, EOFError) as e:
                 print("\nTELNET CONNECTION FAILURE:", e)
 
-    def view_submenu(self):
-        def view_run():
-            print("\n".join(self.tele_instance.ios_fetch_and_store_conf("running-config", "show")))
-        def view_startup():
-            print("\n".join(self.tele_instance.ios_fetch_and_store_conf("startup-config", "show")))
-        def view_myfile():
-            print("\n".join(self.tele_instance.ios_fetch_and_store_conf(self.tele_instance.TEMP_FILE_NAME, "more")))
+    def view_temp_file(self):
+        self.divider()
+        print("\n".join(self.tele_instance.ios_fetch_and_store_conf(self.tele_instance.TEMP_FILE_NAME, "more")))
+        self.divider()
 
+    def view_selected_file(self):
+        # Does not re-read from a local file. Need to re-select a local file to get new changes.
+        self.divider()
+        print("\n".join(self.tele_instance.config_file))
+        self.divider()
+
+    def view_run(self):
+        self.divider()
+        print("\n".join(self.tele_instance.ios_fetch_and_store_conf("running-config", "show")))
+        self.divider()
+
+    def view_startup(self):
+        self.divider()
+        print("\n".join(self.tele_instance.ios_fetch_and_store_conf("startup-config", "show")))
+        self.divider()
+
+    def view_submenu(self):
         menu = {
-            1: view_run,
-            2: view_startup,
-            3: view_myfile
+            1: self.view_run,
+            2: self.view_startup,
+            3: self.view_selected_file
         }
 
         while True:
@@ -412,13 +416,17 @@ class UserMenu(Menu):
     def update_submenu(self):
         def cpy_running():
             self.tele_instance.ios_tclsh()
+            self.view_temp_file()
             if input("\n*Try to copy this config to the running-config? [y/n]:").strip().lower() in ['y','yes']:
                 self.tele_instance.ios_copy_to_config(self.tele_instance.TEMP_FILE_NAME,"running-config")
+            self.tele_instance.ios_remove_temp_file()
 
         def cpy_startup():
             self.tele_instance.ios_tclsh()
+            self.view_temp_file()
             if input("\n*Try to copy this config to the startup-config? [y/n]:").strip().lower() in ['y','yes']:
                 self.tele_instance.ios_copy_to_config(self.tele_instance.TEMP_FILE_NAME,"startup-config")
+            self.tele_instance.ios_remove_temp_file()
 
         def cpy_startup_to_run():
             if input("\n*Copy the startup-config to the running-config? [y/n]:").strip().lower() in ['y','yes']:
@@ -502,15 +510,17 @@ class UserMenu(Menu):
                 quit()
             # Remove CRLF without stripping spaces
             try:
-                config_as_list = list(remove_telnet_chars(i) for i in open(abs_path + file_name))
+                local_config = list(remove_telnet_chars(i) for i in open(abs_path + file_name))
             except (UnicodeDecodeError, OSError) as e:
                 print("Bad file selected:", e)
                 continue
             except FileNotFoundError as e:
                 print("File selected does not exist:", e)
                 continue
-            print(config_as_list)
-            use_this_file = self.tele_instance.config_file_selection_prompts(config_as_list, abs_path, file_name)
+            self.divider()
+            print("\n".join(local_config))
+            self.divider()
+            use_this_file = self.tele_instance.config_file_selection_prompts(local_config, abs_path, file_name)
         print("\nFile Selected!")
 
     def main(self):
@@ -518,5 +528,6 @@ class UserMenu(Menu):
         self.tele_instance.telnet_to_device()
         self.tele_instance.ios_login_and_elevate()
         self.main_menu()
+
 
 UserMenu()

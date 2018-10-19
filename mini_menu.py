@@ -37,7 +37,7 @@ class Menu:
     @staticmethod
     def handle_special_input(current_input):
         if current_input == 'q':  # input 'q' to quit
-            quit()
+            quit(0)
         elif current_input == '' or current_input == 'r':  # Returns space/'r' for menus to handle it.
             return current_input
         else:
