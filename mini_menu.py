@@ -10,7 +10,8 @@ class Menu:
         print('-' * self.horizontal_len)
 
     def header(self, text):  # ---header text---
-        print(('-' * int((self.horizontal_len - len(text)) / 2)) + text + ('-' * int((self.horizontal_len - len(text)) /2)))
+        print(('-' * int((self.horizontal_len - len(text)) / 2)) + text + (
+                    '-' * int((self.horizontal_len - len(text)) / 2)))
 
     def print_menu(self, head, menu):
         # Print menu, entries, divider
@@ -89,7 +90,6 @@ class Menu:
           Return absolute path and the file name (strings).
         """
         cwd = os.getcwd()
-        selected_file = None
         path = os.path.abspath(path)
         os.chdir(path)  # Change dir to path param
         while True:
