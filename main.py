@@ -179,8 +179,7 @@ class UserMenu(Menu):
         current_startup = self.tele_instance.ios_fetch_and_store_conf("startup-config", "show")
 
         def list_difference(li1, li2):
-            # https://www.geeksforgeeks.org/python-difference-two-lists/
-            return list(set(li1) - set(li2))
+            return list(set(li1) ^ set(li2))
 
         def run_vs_startup():
             print("Differences between running-config and startup-config.")
