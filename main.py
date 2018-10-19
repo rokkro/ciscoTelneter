@@ -177,13 +177,33 @@ class UserMenu(Menu):
     def compare_submenu(self):
         current_running = self.tele_instance.ios_fetch_and_store_conf("running-config", "show")
         current_startup = self.tele_instance.ios_fetch_and_store_conf("startup-config", "show")
-        # Compare running-config to selected file
-        # Compare startup-config to selected file
-        # Compare running-config to startup-config
+
+        def list_difference(li1, li2):
+            # https://www.geeksforgeeks.org/python-difference-two-lists/
+            return list(set(li1) - set(li2))
+
+        def run_vs_startup():
+            print("Differences between running-config and startup-config.")
+            self.divider()
+            print("\n".join(list_difference(current_running, current_startup)))
+            self.divider()
+
+        def run_vs_selected():
+            print("Differences between running-config and selected config.")
+            self.divider()
+            print("\n".join(list_difference(current_running, self.tele_instance.config_file)))
+            self.divider()
+
+        def startup_vs_selected():
+            print("Differences between startup-config and selected config.")
+            self.divider()
+            print("\n".join(list_difference(current_startup, self.tele_instance.config_file)))
+            self.divider()
+
         menu = {
-            1: "asdf",
-            2: "asdf",
-            3: "asdf"
+            1: run_vs_selected,
+            2: startup_vs_selected,
+            3: run_vs_startup
         }
         while True:
             selected_option = Menu().get_menu("COMPARE",
