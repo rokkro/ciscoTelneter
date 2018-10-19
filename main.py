@@ -33,20 +33,35 @@ class UserMenu(Menu):
         super().__init__()
         self.tele_instance = TeleCisco()
         self.tele_instance.configs_root_dir = CONFIGS_ROOT_DIR
-        self.main()
+        self.initialize()
+        self.main_menu()
+
+    def new_connection(self):
+        self.tele_instance.reset()
+        self.tele_instance.telnet_to_device()
+
+    def initialize(self):
+        print("Clearing any existing connections...")
+        self.tele_instance.reset()  # Ensure it's fresh
+        self.tele_instance.configs_root_dir = CONFIGS_ROOT_DIR
+        self.config_file_selection()
+        self.tele_instance.telnet_to_device()
+        self.tele_instance.ios_login_and_elevate()
 
     def main_menu(self):
+
         menu = {
-            1: self.config_file_selection,
+            1: self.initialize,
             2: self.compare_submenu,
             3: self.view_submenu,
             4: self.update_submenu,
-            5: "asdf"
         }
         while True:
+            connection_status_msg = "Connection: " + (("Connected to " + self.tele_instance.host + ".") if self.tele_instance.connection else "No Connection Active.")
+            connection_status_msg += "\n    - Selected file: '" + self.tele_instance.config_file_path + self.tele_instance.config_file_name + "'."
             selected_option = self.get_menu("MAIN",
             [
-                "Selected File: " + self.tele_instance.config_file_path + self.tele_instance.config_file_name,
+                connection_status_msg,
                 "Compare Configurations.",
                 "View Configurations.",
                 "Update & Replace Configurations"
@@ -61,12 +76,16 @@ class UserMenu(Menu):
             except KeyError:
                 pass
             except (ConnectionAbortedError, EOFError) as e:
-                print("\nTELNET CONNECTION FAILURE:", e)
+                self.tele_instance.connection = None
+                print("\n", e)
 
     def view_temp_file(self):
         self.divider()
-        print("\n".join(self.tele_instance.ios_fetch_and_store_conf(self.tele_instance.TEMP_FILE_NAME, "more")))
+        config_as_list = self.tele_instance.ios_fetch_and_store_conf(self.tele_instance.TEMP_FILE_NAME, "more")
+        print("\n".join(config_as_list))
         self.divider()
+        host_name = find_single_line_value(config_as_list, "hostname")
+        print("\nHOSTNAME: " + host_name if host_name else "(Hostname not found in file)")
 
     def view_selected_file(self):
         # Does not re-read from a local file. Need to re-select a local file to get new changes.
@@ -247,12 +266,6 @@ class UserMenu(Menu):
             self.divider()
             use_this_file = self.config_file_selection_prompts(local_config, abs_path, file_name)
         print("\nFile Selected!")
-
-    def main(self):
-        self.config_file_selection()
-        self.tele_instance.telnet_to_device()
-        self.tele_instance.ios_login_and_elevate()
-        self.main_menu()
 
 
 UserMenu()

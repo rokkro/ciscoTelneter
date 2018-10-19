@@ -30,7 +30,7 @@ def remove_telnet_chars(line):
 
 class TeleCisco:
     PORT = 23
-    TELNET_DEBUG_MODE = True
+    TELNET_DEBUG_MODE = False
     READ_TIMEOUT = 3
     CONNECT_TIMEOUT = 10
     TEMP_FILE_NAME = "temp.txt"
@@ -85,6 +85,26 @@ class TeleCisco:
             store_list.append(line)
         return store_list
 
+    def input_password(self):
+        # Use getpass() to prompt for user to enter password unless self.password already has something in it
+        passwd = ""
+        if self.password:
+            return self.password
+        # print("Displaying password prompt. If it does not show, use a different terminal application.\n")
+        while not passwd:
+            # getpass() does not work in normal IDE, use debug mode or the command line
+            passwd = getpass.getpass('Password: ')
+        self.password = passwd
+        return passwd
+
+    def input_username(self):
+        while not self.username:
+            self.username = input("Username: ")
+
+    def input_host(self):
+        while not self.host:
+            self.host = input("IP or Hostname: ")
+
     def ios_login_and_elevate(self):
         # Get through username and password prompts and enter privileged mode.
         if not self.connection:
@@ -98,10 +118,8 @@ class TeleCisco:
                 continue
             # LOGIN STUFF #
             if "Username:" in line.decode():
-                while not self.username:
-                    self.username = input("Username: ")
+                self.input_username()
                 self.connection.write(self.username.encode('ascii') + b"\n")
-                # self.connection.interact()
                 continue
             elif "Password:" in line.decode():
                 self.connection.write(self.input_password().encode('ascii') + b"\n")
@@ -195,19 +213,15 @@ class TeleCisco:
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
         while True:
-            try:
-                line = self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
-                line = line.decode()
-                if "no" in line:  # "[yes/no]" and "yes or no" telnet has a char limit per line sent.
-                    self.connection.write(b"yes\n")
-                    continue
-                if "rm]" in line:  # [confirm]: - telnet has a char limit per line sent.
-                    self.connection.write(b"\r\n")
-                    break
+            line = self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+            line = line.decode()
+            if "no" in line:  # "[yes/no]" and "yes or no" telnet has a char limit per line sent.
+                self.connection.write(b"yes\n")
+                continue
+            if "rm]" in line:  # [confirm]: - telnet has a char limit per line sent.
                 self.connection.write(b"\r\n")
-            except ConnectionAbortedError as e:
-                print("Connection closed. Device probably reloading...")
-                return
+                break
+            self.connection.write(b"\r\n")
 
     def ios_remove_temp_file(self):
         # Delete temporary file created to store config from tclsh
@@ -226,21 +240,12 @@ class TeleCisco:
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
         print("File deleted.")
 
-    def input_password(self):
-        # Use getpass() to prompt for user to enter password unless self.password already has something in it
-        passwd = ""
-        if self.password:
-            return self.password
-        # print("Displaying password prompt. If it does not show, use a different terminal application.\n")
-        while not passwd:
-            # getpass() does not work in normal IDE, use debug mode or the command line
-            passwd = getpass.getpass('Password: ')
-        self.password = passwd
-        return passwd
-
-    def input_host(self):
-        while not self.host:
-            self.host = input("IP or Hostname: ")
+    def reset(self):
+        self.host = ""
+        self.username = ""
+        self.password = ""
+        self.connection = None
+        self.is_privileged_user = False
 
     def telnet_to_device(self):
         # Create telnet connection to host
@@ -255,5 +260,6 @@ class TeleCisco:
         except (socket.gaierror, socket.timeout) as e:
             # Kill connection when it fails
             print("Connection to host failed:", e)
+            self.connection = None
             return
         print("Connection Succeeded!")
