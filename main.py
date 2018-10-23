@@ -31,25 +31,26 @@ class UserMenu(Menu):
 # Handles most user command line interaction. Creates menus, prompts for user input, etc.
 
     def __init__(self):
+        # Initial device connection + selection stuff, then show menu interface
         super().__init__()
         self.tele_instance = TeleCisco()
         self.initialize()
         self.main_menu()
-
-    def new_connection(self):
-        self.tele_instance.reset()
-        self.tele_instance.telnet_to_device()
+        self.configs_root_dir = ""
+        self.config_file_path = ""
+        self.config_file_name = ""
 
     def initialize(self):
+        # Clear connection, reprompt for file selection,
+        #  connect to device, elevate privileges
         print("Clearing any existing connections...")
         self.tele_instance.reset()  # Ensure it's fresh
-        self.tele_instance.configs_root_dir = CONFIGS_ROOT_DIR
         self.config_file_selection()
         self.tele_instance.telnet_to_device()
         self.tele_instance.ios_login_and_elevate()
 
     def main_menu(self):
-
+        # Displays main menu and gets user input
         menu = {
             1: self.initialize,
             2: self.compare_submenu,
@@ -58,7 +59,7 @@ class UserMenu(Menu):
         }
         while True:
             connection_status_msg = "Connection: " + (("Connected to " + self.tele_instance.host + ".") if self.tele_instance.connection else "No Connection Active.")
-            connection_status_msg += "\n    - Selected file: '" + self.tele_instance.config_file_path + self.tele_instance.config_file_name + "'."
+            connection_status_msg += "\n    - Selected file: '" + self.config_file_path + self.config_file_name + "'."
             selected_option = self.get_menu("MAIN",
             [
                 connection_status_msg,
@@ -80,6 +81,8 @@ class UserMenu(Menu):
                 print("\n", e)
 
     def view_temp_file(self):
+        # Print out contents of temporary file stored on device.
+        # This file is later deleted from the device after copying.
         self.divider()
         config_as_list = self.tele_instance.ios_fetch_and_store_conf(self.tele_instance.TEMP_FILE_NAME, "more")
         print("\n".join(config_as_list))
@@ -88,22 +91,26 @@ class UserMenu(Menu):
         print("\nHOSTNAME: " + host_name if host_name else "(Hostname not found in file)")
 
     def view_selected_file(self):
-        # Does not re-read from a local file. Need to re-select a local file to get new changes.
+        # Prints content of selected local config file.
+        # Does not re-read from a local file, as it's stored as a list.
         self.divider()
         print("\n".join(self.tele_instance.config_file))
         self.divider()
 
     def view_run(self):
+        # Prints out content of device's current running-config
         self.divider()
         print("\n".join(self.tele_instance.ios_fetch_and_store_conf("running-config", "show")))
         self.divider()
 
     def view_startup(self):
+        # Prints out content of device's current startup-config
         self.divider()
         print("\n".join(self.tele_instance.ios_fetch_and_store_conf("startup-config", "show")))
         self.divider()
 
     def view_submenu(self):
+        # Displays submenu for viewing files.
         menu = {
             1: self.view_run,
             2: self.view_startup,
@@ -128,7 +135,10 @@ class UserMenu(Menu):
                 pass
 
     def update_submenu(self):
+        # Displays submenu for copying/updating various files.
+
         def cpy_running():
+            # Tells device to copy the local config to the device as a temp file, then copy it to running-config
             self.tele_instance.ios_tclsh()
             self.view_temp_file()
             if input("\n*Try to copy this config to the running-config? [y/n]:").strip().lower() in ['y', 'yes']:
@@ -136,6 +146,7 @@ class UserMenu(Menu):
             self.tele_instance.ios_remove_temp_file()
 
         def cpy_startup():
+            # Tells device to copy the local config to the device as a temp file, then copy it to startup-config
             self.tele_instance.ios_tclsh()
             self.view_temp_file()
             if input("\n*Try to copy this config to the startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
@@ -143,10 +154,12 @@ class UserMenu(Menu):
             self.tele_instance.ios_remove_temp_file()
 
         def cpy_startup_to_run():
+            # Tells device to copy the startup-config to the running-config
             if input("\n*Copy the startup-config to the running-config? [y/n]:").strip().lower() in ['y', 'yes']:
                 self.tele_instance.ios_copy_to_config("startup-config", "running-config")
 
         def init_reload():
+            # Tells device to reload, saving any changes made to the running-config
             if input("\n*Reload the device? The telnet connection will close. [y/n]:").strip().lower() in ['y', 'yes']:
                 self.tele_instance.ios_reload()
 
@@ -175,25 +188,32 @@ class UserMenu(Menu):
                 pass
 
     def compare_submenu(self):
+        # Displays menu for viewing differences between various files.
+        # Gets the configs upon entering submenu, so they aren't reloaded constantly.
+        # Comparison functionality is fairly basic at the moment.
         current_running = self.tele_instance.ios_fetch_and_store_conf("running-config", "show")
         current_startup = self.tele_instance.ios_fetch_and_store_conf("startup-config", "show")
 
         def list_difference(li1, li2):
+            # Shows differences of both lists
             return list(set(li1) ^ set(li2))
 
         def run_vs_startup():
+            # Prints out differences between these files, separated by line.
             print("Differences between running-config and startup-config.")
             self.divider()
             print("\n".join(list_difference(current_running, current_startup)))
             self.divider()
 
         def run_vs_selected():
+            # Prints out differences between these files, separated by line.
             print("Differences between running-config and selected config.")
             self.divider()
             print("\n".join(list_difference(current_running, self.tele_instance.config_file)))
             self.divider()
 
         def startup_vs_selected():
+            # Prints out differences between these files, separated by line.
             print("Differences between startup-config and selected config.")
             self.divider()
             print("\n".join(list_difference(current_startup, self.tele_instance.config_file)))
@@ -223,16 +243,18 @@ class UserMenu(Menu):
 
     def config_file_selection_prompts(self, config_as_list, abs_path, file_name):
         # Prompt for whether or not file should be used. Prompt for usage of hostname or password from config file
-        host_name = find_single_line_value(config_as_list, "hostname")
-        passwd = find_single_line_value(config_as_list, "password")
-        username = find_single_line_value(config_as_list, "username")
-        print(
-            "\nPATH: " + abs_path + file_name + "\nHOSTNAME: " + host_name if host_name else "(Hostname not found in file)")
-        good_file = input("\n*Continue using this file? [y/n]:")
-        if good_file.strip().lower() in ["y", "yes"]:
+        host_name = find_single_line_value(config_as_list, "hostname")  # Find "hostname" field in file
+        passwd = find_single_line_value(config_as_list, "password")   # Find "password" field in file
+        username = find_single_line_value(config_as_list, "username")  # Find "username" field in file
+
+        print("\nPATH: " + abs_path + file_name)
+        print("HOSTNAME: " + host_name if host_name else "(Hostname not found in file)")
+
+        user_approval = input("\n*Continue using this file? [y/n]:")
+        if user_approval.strip().lower() in ["y", "yes"]:
             self.tele_instance.config_file = config_as_list
-            self.tele_instance.config_file_path = abs_path
-            self.tele_instance.config_file_name = file_name
+
+            # Asking if device should use hostname, username, and password found in config file.
             if host_name:
                 use_this_host = input("\n*Is the device currently using the hostname '" + host_name + "'? [y/n]:")
                 if use_this_host.strip().lower() in ["y", "yes"]:
@@ -246,28 +268,34 @@ class UserMenu(Menu):
                 use_this_pass = input("\n*Password found as plaintext in config. Use it for logging in? [y/n]:")
                 if use_this_pass.strip().lower() in ["y", "yes"]:
                     self.tele_instance.password = passwd
+
+            # Return True, indicating the user wants to use this file.
             return True
         else:
             return False
 
-    def config_file_selection(self):
-        # Display menu, prompt for file selection. Get config
-        print("\n---Configuration File Selection---")
+    def input_configs_root_dir(self):
+        # If user didnt specify CONFIGS_ROOT_DIR, prompt for it.
         if not self.tele_instance.configs_root_dir:
             print("***Change CONFIGS_ROOT_DIR in the script to a config file location!***")
-            self.tele_instance.configs_root_dir = input(
-                "Enter an absolute path to a config file repository or a config file itself:")
+            self.tele_instance.configs_root_dir = \
+                input("Enter an absolute path to a config file repository or a config file itself:")
+
+    def config_file_selection(self):
+        # Display menu, prompt for file selection.
+        print("\n---Configuration File Selection---")
+        self.input_configs_root_dir()
         use_this_file = False
         while not use_this_file:
             try:
-                if os.path.isdir(self.tele_instance.configs_root_dir):
-                    abs_path, file_name = Menu().get_path_menu(self.tele_instance.configs_root_dir)
-                    self.tele_instance.configs_root_dir = abs_path  # Move dir path here, in case user decides not to use file
+                if os.path.isdir(self.configs_root_dir):
+                    abs_path, file_name = Menu().get_path_menu(self.configs_root_dir)
+                    self.configs_root_dir = abs_path  # Move dir path here, in case user decides not to use file
                 else:
-                    abs_path = os.path.abspath(self.tele_instance.configs_root_dir)
+                    abs_path = os.path.abspath(self.configs_root_dir)
                     file_name = abs_path[abs_path.rfind("\\") + 1:]
                     abs_path = abs_path.replace(file_name, "")
-                    self.tele_instance.configs_root_dir = abs_path  # Move dir path here, in case user decides not to use file
+                    self.configs_root_dir = abs_path  # Move dir path here, in case user decides not to use file
             except Exception as e:
                 print("Config path issue:", e, "\nExiting...")
                 quit()
