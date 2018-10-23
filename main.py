@@ -28,11 +28,11 @@ def find_single_line_value(config_as_list, starts_with_field):
 
 
 class UserMenu(Menu):
+# Handles most user command line interaction. Creates menus, prompts for user input, etc.
 
     def __init__(self):
         super().__init__()
         self.tele_instance = TeleCisco()
-        self.tele_instance.configs_root_dir = CONFIGS_ROOT_DIR
         self.initialize()
         self.main_menu()
 

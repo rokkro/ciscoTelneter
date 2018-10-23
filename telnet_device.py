@@ -43,9 +43,6 @@ class TeleCisco:
         self.is_privileged_user = False
         self.connection = None
         self.config_file = []
-        self.config_file_name = ""
-        self.config_file_path = ""
-        self.configs_root_dir = ""
 
     def ios_change_term_length(self, length):
         # Change terminal length to selected value. length = 0 is probably what you want.
