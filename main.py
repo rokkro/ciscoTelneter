@@ -74,7 +74,7 @@ class UserMenu(Menu):
             ],
             "*Enter a value or [q]uit.\n>>>")
             if selected_option == 'r':
-                return
+                continue
             if not selected_option:
                 continue
             try:
