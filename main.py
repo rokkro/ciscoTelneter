@@ -44,10 +44,14 @@ class UserMenu(Menu):
         # Clear connection, reprompt for file selection,
         #  connect to device, elevate privileges
         print("Clearing any existing connections...")
-        self.tele_instance.reset()  # Ensure it's fresh
-        self.config_file_selection()
-        self.tele_instance.telnet_to_device()
-        self.tele_instance.ios_login_and_elevate()
+        try:
+            self.tele_instance.reset()  # Ensure it's fresh
+            self.config_file_selection()
+            self.tele_instance.telnet_to_device()
+            self.tele_instance.ios_login_and_elevate()
+        except EOFError as e:
+            # Connection probably terminated.
+            print(e)
 
     def main_menu(self):
         # Displays main menu and gets user input
