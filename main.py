@@ -11,7 +11,7 @@ import os
 ##################################################################
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
 # You can use forward slashes instead of backslashes on Windows
-CONFIGS_ROOT_DIR = ""
+CONFIGS_LOCATION = ""
 ##################################################################
 
 
@@ -28,7 +28,7 @@ def find_single_line_value(config_as_list, starts_with_field):
 
 
 class UserMenu(Menu):
-# Handles most user command line interaction. Creates menus, prompts for user input, etc.
+    # Handles most user command line interaction. Creates menus, prompts for user input, etc.
 
     def __init__(self):
         # Initial device connection + selection stuff, then show menu interface
@@ -36,7 +36,7 @@ class UserMenu(Menu):
         self.tele_instance = TeleCisco()
         self.initialize()
         self.main_menu()
-        self.configs_root_dir = ""
+        self.configs_location = CONFIGS_LOCATION
         self.config_file_path = ""
         self.config_file_name = ""
 
@@ -58,7 +58,8 @@ class UserMenu(Menu):
             4: self.update_submenu,
         }
         while True:
-            connection_status_msg = "Connection: " + (("Connected to " + self.tele_instance.host + ".") if self.tele_instance.connection else "No Connection Active.")
+            connection_status_msg = "Connection: " + (("Connected to " + self.tele_instance.host + ".")
+                                        if self.tele_instance.connection else "No Connection Active.")
             connection_status_msg += "\n    - Selected file: '" + self.config_file_path + self.config_file_name + "'."
             selected_option = self.get_menu("MAIN",
             [
@@ -244,7 +245,7 @@ class UserMenu(Menu):
     def config_file_selection_prompts(self, config_as_list, abs_path, file_name):
         # Prompt for whether or not file should be used. Prompt for usage of hostname or password from config file
         host_name = find_single_line_value(config_as_list, "hostname")  # Find "hostname" field in file
-        passwd = find_single_line_value(config_as_list, "password")   # Find "password" field in file
+        passwd = find_single_line_value(config_as_list, "password")  # Find "password" field in file
         username = find_single_line_value(config_as_list, "username")  # Find "username" field in file
 
         print("\nPATH: " + abs_path + file_name)
@@ -253,8 +254,8 @@ class UserMenu(Menu):
         user_approval = input("\n*Continue using this file? [y/n]:")
         if user_approval.strip().lower() in ["y", "yes"]:
             self.tele_instance.config_file = config_as_list
-
-            # Asking if device should use hostname, username, and password found in config file.
+            self.config_file_path = abs_path
+            self.config_file_name = file_name
             if host_name:
                 use_this_host = input("\n*Is the device currently using the hostname '" + host_name + "'? [y/n]:")
                 if use_this_host.strip().lower() in ["y", "yes"]:
@@ -274,28 +275,31 @@ class UserMenu(Menu):
         else:
             return False
 
-    def input_configs_root_dir(self):
-        # If user didnt specify CONFIGS_ROOT_DIR, prompt for it.
-        if not self.tele_instance.configs_root_dir:
-            print("***Change CONFIGS_ROOT_DIR in the script to a config file location!***")
-            self.tele_instance.configs_root_dir = \
+    def input_configs_location(self):
+        # If user didn't specify CONFIGS_LOCATION, prompt for it.
+        if not self.configs_location:
+            print("***Change CONFIGS_LOCATION in the script to a config file location!***")
+            self.configs_location = \
                 input("Enter an absolute path to a config file repository or a config file itself:")
 
     def config_file_selection(self):
         # Display menu, prompt for file selection.
         print("\n---Configuration File Selection---")
-        self.input_configs_root_dir()
+        # Ensure user entered a file
+        self.input_configs_location()
+        # Keep displaying the menu until the user decides on a file
         use_this_file = False
         while not use_this_file:
             try:
-                if os.path.isdir(self.configs_root_dir):
-                    abs_path, file_name = Menu().get_path_menu(self.configs_root_dir)
-                    self.configs_root_dir = abs_path  # Move dir path here, in case user decides not to use file
+                # If CONFIGS_LOCATION is a directory, spawn a menu, else use that file
+                if os.path.isdir(self.configs_location):
+                    abs_path, file_name = Menu().get_path_menu(self.configs_location)
+                    self.configs_location = abs_path  # Move dir path here, in case user decides not to use file
                 else:
-                    abs_path = os.path.abspath(self.configs_root_dir)
+                    abs_path = os.path.abspath(self.configs_location)
                     file_name = abs_path[abs_path.rfind("\\") + 1:]
                     abs_path = abs_path.replace(file_name, "")
-                    self.configs_root_dir = abs_path  # Move dir path here, in case user decides not to use file
+                    self.configs_location = abs_path  # Move dir path here, in case user decides not to use file
             except Exception as e:
                 print("Config path issue:", e, "\nExiting...")
                 quit()
@@ -311,6 +315,7 @@ class UserMenu(Menu):
             self.divider()
             print("\n".join(local_config))
             self.divider()
+            # Ask user if they want to use the file + other prompts
             use_this_file = self.config_file_selection_prompts(local_config, abs_path, file_name)
         print("\nFile Selected!")
 
