@@ -60,6 +60,7 @@ class UserMenu(Menu):
             2: self.compare_submenu,
             3: self.view_submenu,
             4: self.update_submenu,
+            5: self.switch_to_commandline
         }
         while True:
             connection_status_msg = "Connection: " + (("Connected to " + self.tele_instance.host + ".")
@@ -70,7 +71,8 @@ class UserMenu(Menu):
                 connection_status_msg,
                 "Compare Configurations.",
                 "View Configurations.",
-                "Update & Replace Configurations"
+                "Update & Replace Configurations",
+                "Switch to Device Command Line"
             ],
             "*Enter a value or [q]uit.\n>>>")
             if selected_option == 'r':
@@ -101,6 +103,11 @@ class UserMenu(Menu):
         self.divider()
         print("\n".join(self.tele_instance.config_file))
         self.divider()
+
+    def switch_to_commandline(self):
+        print("Switching to command line. You will not be able to return to the program unless you restart it.\n"
+              "Press Enter several times to see the command line.")
+        self.tele_instance.connection.interact()
 
     def view_run(self):
         # Prints out content of device's current running-config
