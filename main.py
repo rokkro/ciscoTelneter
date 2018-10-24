@@ -34,11 +34,11 @@ class UserMenu(Menu):
         # Initial device connection + selection stuff, then show menu interface
         super().__init__()
         self.tele_instance = TeleCisco()
-        self.initialize()
-        self.main_menu()
         self.configs_location = CONFIGS_LOCATION
         self.config_file_path = ""
         self.config_file_name = ""
+        self.initialize()
+        self.main_menu()
 
     def initialize(self):
         # Clear connection, reprompt for file selection,
