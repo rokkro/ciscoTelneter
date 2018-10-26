@@ -206,30 +206,56 @@ class UserMenu(Menu):
         current_running = self.tele_instance.ios_fetch_and_store_conf("running-config", "show")
         current_startup = self.tele_instance.ios_fetch_and_store_conf("startup-config", "show")
 
-        def list_difference(li1, li2):
+        def list_difference(list_1, list_2, list_1_name, list_2_name):
             # Shows differences of both lists
-            return list(set(li1) ^ set(li2))
+            # Field size surrounding file name label
+            name_spacing = (len(list_1_name)) if len(list_1_name) > len(list_2_name) else (len(list_2_name))
+            diff_list_1 = []
+            diff_list_2 = []
+
+            for line_no, list_1_element in enumerate(list_1):
+                if list_1_element.strip() and list_1_element not in list_2:
+                    diff_list_1.append(str(line_no).ljust(5,' ') + list_1_name.ljust(name_spacing,' ') + ": " + list_1_element)
+            for line_no, list_2_element in enumerate(list_2):
+                if list_2_element.strip() and list_2_element not in list_1:
+                    diff_list_2.append(str(line_no).ljust(5,' ') + list_2_name.ljust(name_spacing,' ') + ": " + list_2_element)
+            return diff_list_1, diff_list_2
+
+        def format_list_diffs(list_1, list_2, file_name_1, file_name_2):
+            # For printing diff lists nicely
+            diff_list_1, diff_list_2 = list_difference(list_1, list_2, file_name_1, file_name_2)
+            print("\n\n")  # Jump a couple lines to reduce immediate clutter
+            self.divider()
+            print("Lines in " + file_name_1 + ", but not in " + file_name_2 + ":")
+            self.divider()
+            print("\n".join(diff_list_1))
+            print("\n", end='')
+            self.divider()
+            print("Lines in " + file_name_2 + ", but not in " + file_name_1 + ":")
+            self.divider()
+            print("\n".join(diff_list_2))
+            print("\n", end='')
+            self.divider()
 
         def run_vs_startup():
             # Prints out differences between these files, separated by line.
-            print("Differences between running-config and startup-config.")
-            self.divider()
-            print("\n".join(list_difference(current_running, current_startup)))
-            self.divider()
+            format_list_diffs(current_running,current_startup,"running-config", "startup-config")
 
         def run_vs_selected():
             # Prints out differences between these files, separated by line.
-            print("Differences between running-config and selected config.")
-            self.divider()
-            print("\n".join(list_difference(current_running, self.tele_instance.config_file)))
-            self.divider()
+            local_conf_name = self.config_file_name
+            # Avoid cases where both are named "running-config", making it hard to spot diffs
+            if local_conf_name.strip() == "running-config":
+                local_conf_name = "(local config)"
+            format_list_diffs(current_running, self.tele_instance.config_file, "running-config",local_conf_name)
 
         def startup_vs_selected():
             # Prints out differences between these files, separated by line.
-            print("Differences between startup-config and selected config.")
-            self.divider()
-            print("\n".join(list_difference(current_startup, self.tele_instance.config_file)))
-            self.divider()
+            local_conf_name = self.config_file_name
+            # Avoid cases where both are named "running-config", making it hard to spot diffs
+            if local_conf_name.strip() == "startup-config":
+                local_conf_name = "(local config)"
+            format_list_diffs(current_startup, self.tele_instance.config_file, "startup-config",local_conf_name)
 
         menu = {
             1: run_vs_selected,
@@ -318,8 +344,8 @@ class UserMenu(Menu):
             try:
                 local_config = list(remove_telnet_chars(i) for i in open(abs_path + file_name))
             except (UnicodeDecodeError, OSError) as e:
-                print("Bad file selected:", e)
-                continue
+                print("Bad path:", e)
+                quit()
             except FileNotFoundError as e:
                 print("File selected does not exist:", e)
                 continue
