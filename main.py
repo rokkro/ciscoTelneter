@@ -71,8 +71,8 @@ class UserMenu(Menu):
                 connection_status_msg,
                 "Compare Configurations.",
                 "View Configurations.",
-                "Update & Replace Configurations",
-                "Switch to Device Command Line"
+                "Update & Replace Configurations.",
+                "Switch to Device Command Line."
             ],
             "*Enter a value or [q]uit.\n>>>")
             if selected_option == 'r':
@@ -186,7 +186,7 @@ class UserMenu(Menu):
               [
                   "Copy selected file to running-config.",
                   "Copy selected file to startup-config.",
-                  "Copy startup-config to running-config",
+                  "Copy startup-config to running-config.",
                   "Reload the device.",
               ],
               "*Enter a value or [r]eturn, [q]uit.\n>>>")
