@@ -215,10 +215,10 @@ class UserMenu(Menu):
 
             for line_no, list_1_element in enumerate(list_1):
                 if list_1_element.strip() and list_1_element not in list_2:
-                    diff_list_1.append(str(line_no).ljust(5,' ') + list_1_name.ljust(name_spacing,' ') + ": " + list_1_element)
+                    diff_list_1.append(str(line_no + 1).ljust(5,' ') + list_1_name.ljust(name_spacing,' ') + ": " + list_1_element)
             for line_no, list_2_element in enumerate(list_2):
                 if list_2_element.strip() and list_2_element not in list_1:
-                    diff_list_2.append(str(line_no).ljust(5,' ') + list_2_name.ljust(name_spacing,' ') + ": " + list_2_element)
+                    diff_list_2.append(str(line_no + 1).ljust(5,' ') + list_2_name.ljust(name_spacing,' ') + ": " + list_2_element)
             return diff_list_1, diff_list_2
 
         def format_list_diffs(list_1, list_2, file_name_1, file_name_2):
