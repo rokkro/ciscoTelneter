@@ -10,7 +10,7 @@ import os
 
 ##################################################################
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
-# You can use forward slashes instead of backslashes on Windows
+# You have to use forward slashes instead of backslashes on Windows
 CONFIGS_LOCATION = ""
 ##################################################################
 
