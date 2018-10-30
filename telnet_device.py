@@ -71,6 +71,17 @@ class TeleCisco:
             line = self.connection.read_until(b"\r\n", timeout=self.READ_TIMEOUT)
             # If empty line, assume done reading file
             if not line.strip():
+                self.connection.write(b"\n")
+                self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
+                self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
+                self.connection.write(b"\n")
+                self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
+                self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)
+                self.connection.read_until(b"\r\n", timeout=self.READ_TIMEOUT)
+                self.connection.read_until(b"\r\n", timeout=self.READ_TIMEOUT)
+                self.connection.read_until(b"\r\n", timeout=self.READ_TIMEOUT)
+                self.connection.read_until(b"\r\n", timeout=self.READ_TIMEOUT)
+                self.connection.read_until(b"\r\n", timeout=self.READ_TIMEOUT)
                 break
             line = line.decode()
             if "Building" in line:
