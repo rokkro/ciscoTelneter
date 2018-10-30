@@ -22,6 +22,7 @@ It uses telnet, so it's not secure. It's intended to be used in a setting where 
 * Security is poor over telnet. Don't use this script in environments where security is a concern.
 * May not work with future versions of IOS or IOS devices that don't support Tcl (like ASA firewalls).
 * Can copy bad configs if you're not careful. Pay attention to the confirmation prompts.
+* The password prompt won't show if running the script in PyCharm (it does show in PyCharm's debug mode, however).
 
 **To run:** 
 
@@ -42,7 +43,7 @@ It uses telnet, so it's not secure. It's intended to be used in a setting where 
 >>>
 ```
 * To navigate, enter the number of the menu option you want to select and press enter.
-* Entering a '1', will reset the connection and prompt you to select a config file again.
+* Entering a '1' in this menu will  both reset the connection and prompt you to select a config file again.
 * Enter an 'r' to exit submenus and return to the main menu shown above.
 * Enter a 'q' to exit the program.
 * If you switch to the device command line, you will be unable to return to the above interface unless you restart the script.
