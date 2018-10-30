@@ -1,7 +1,7 @@
 # ciscoTelneter
 Script to simplify older Cisco switch/router config flashing without tftp. Telnet must be enabled on the recieving device, and there must be a working connection to said device.
 
-This is used for Cisco switches and routers running IOS 12.X - this script probably won't work right with newer or older versions. This script is prone to breakage because of how different devices work.
+This is used for Cisco switches and routers running IOS 12.X - this script may not work right with newer or older versions, and I don't have a way to test this either. This script is likely to break if there's much variation in commands between IOS versions.
 
 It uses telnet, so it's not secure. It's intended to be used in a setting where switch and router security are not major concerns, such as an isolated student networking lab.  
 
@@ -20,7 +20,8 @@ It uses telnet, so it's not secure. It's intended to be used in a setting where 
 * Won't work when telnet is disabled on the device.
 * Won't work when the device cannot be accessed remotely.
 * Security is poor over telnet. Don't use this script in environments where security is a concern.
-* May not work with future versions of IOS or IOS devices that don't support Tcl (like ASA firewalls).
+* May not work with future/older versions of IOS.
+* Won't work on IOS devices that don't support Tcl (like ASA firewalls).
 * Can copy bad configs if you're not careful. Pay attention to the confirmation prompts.
 * The password prompt won't show if running the script in PyCharm (it does show in PyCharm's debug mode, however).
 
