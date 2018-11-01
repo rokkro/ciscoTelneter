@@ -57,15 +57,16 @@ class UserMenu(Menu):
     def get_path():
         path = ""
         while True:
-            path = input("Enter a local path, excluding the file name:")
+            path = input("Enter a path to the directory to save the config in, excluding the file name:")
             path = path.replace("\\\\", "\\")
-            if not os.path.exists(path):
-                print("Invalid Path!")
+            if not os.path.isdir(path):
+                print("Invalid directory path!")
+                continue
             try:  # Test write permissions of the directory
                 print("Testing write permissions...")
-                path_to_file = path + str(uuid.uuid4())
-                file_tmp = open(path_to_file,'w')
-                file_tmp.close()
+                path_to_file = path + "/" + str(uuid.uuid4())
+                with open(path_to_file,'w') as test_file:
+                    test_file.write("test")
                 os.remove(path_to_file)
             except Exception as e:
                 print("Write issue:",e)
@@ -75,6 +76,7 @@ class UserMenu(Menu):
 
     def save_config(self, config_name):
         config_list = self.tele_instance.ios_fetch_and_store_conf(config_name, "show")
+        print("(The file should be displayed below if no errors occurred).")
         print("\n".join(i for i in config_list))
         self.divider()
         inpt = input("Save the above config? [y/n]:")
@@ -158,6 +160,7 @@ class UserMenu(Menu):
         # This file is later deleted from the device after copying.
         self.divider()
         config_as_list = self.tele_instance.ios_fetch_and_store_conf(self.tele_instance.TEMP_FILE_NAME, "more")
+        print("(The file should be displayed below if no errors occurred).")
         print("\n".join(config_as_list))
         self.divider()
         host_name = find_single_line_value(config_as_list, "hostname")
@@ -167,6 +170,7 @@ class UserMenu(Menu):
         # Prints content of selected local config file.
         # Does not re-read from a local file, as it's stored as a list.
         self.divider()
+        print("(The file should be displayed below if no errors occurred).")
         print("\n".join(self.tele_instance.config_file))
         self.divider()
 
@@ -177,14 +181,18 @@ class UserMenu(Menu):
 
     def view_run(self):
         # Prints out content of device's current running-config
+        config = "\n".join(self.tele_instance.ios_fetch_and_store_conf("running-config", "show"))
         self.divider()
-        print("\n".join(self.tele_instance.ios_fetch_and_store_conf("running-config", "show")))
+        print("(The file should be displayed below if no errors occurred).")
+        print(config)
         self.divider()
 
     def view_startup(self):
         # Prints out content of device's current startup-config
+        config = "\n".join(self.tele_instance.ios_fetch_and_store_conf("startup-config", "show"))
         self.divider()
-        print("\n".join(self.tele_instance.ios_fetch_and_store_conf("startup-config", "show")))
+        print("(The file should be displayed below if no errors occurred).")
+        print(config)
         self.divider()
 
     def view_submenu(self):
@@ -407,6 +415,7 @@ class UserMenu(Menu):
                 print("File selected does not exist:", e)
                 continue
             self.divider()
+            print("(The file should be displayed below if no errors occurred).")
             print("\n".join(local_config))
             self.divider()
             # Ask user if they want to use the file + other prompts

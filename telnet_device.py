@@ -122,6 +122,7 @@ class TeleCisco:
             self.telnet_to_device()
             return
         print("\n---CLI Login---")
+        print("Preparing login...")
         while True:
             line = self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)
             if not line.strip():
