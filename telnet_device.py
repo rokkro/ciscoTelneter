@@ -47,7 +47,6 @@ class TeleCisco:
     def ios_change_term_length(self, length):
         # Change terminal length to selected value. length = 0 is probably what you want.
         # Prevents --more-- prompt from showing, which causes issues with CRLFs
-        print("Changing terminal length...")
         self.connection.write(("terminal length " + str(length)).encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
 
