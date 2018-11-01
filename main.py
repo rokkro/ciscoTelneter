@@ -136,11 +136,11 @@ class UserMenu(Menu):
             selected_option = self.get_menu("MAIN",
             [
                 connection_status_msg,
-                "View Configurations.",
-                "Compare Configurations.",
-                "Save Configs to Local Machine.",
-                "Update & Replace Configurations.",
-                "Switch to Device Command Line.",
+                "View Configs.",
+                "Compare Configs.",
+                "Save Configs.",
+                "Update Device Configs.",
+                "Switch to Device CLI.",
             ],
             "*Enter a value or [q]uit.\n>>>")
             if selected_option == 'r':
@@ -208,7 +208,7 @@ class UserMenu(Menu):
               [
                   "View running-config.",
                   "View startup-config.",
-                  "View selected file."
+                  "View Local Config."
               ],
               "*Enter a value or [r]eturn, [q]uit.\n>>>")
             if selected_option == 'r':
@@ -258,8 +258,8 @@ class UserMenu(Menu):
         while True:
             selected_option = Menu().get_menu("UPDATE",
               [
-                  "Copy selected file to running-config.",
-                  "Copy selected file to startup-config.",
+                  "Copy Local Config to running-config.",
+                  "Copy Local Config to startup-config.",
                   "Copy startup-config to running-config.",
                   "Reload the device.",
               ],
@@ -317,10 +317,7 @@ class UserMenu(Menu):
 
         def run_vs_selected():
             # Prints out differences between these files, separated by line.
-            local_conf_name = self.config_file_name
-            # Avoid cases where both are named "running-config", making it hard to spot diffs
-            if local_conf_name.strip() == "running-config":
-                local_conf_name = "(local config)"
+            local_conf_name = "(local config)"
             format_list_diffs(current_running, self.tele_instance.config_file, "running-config",local_conf_name)
 
         def startup_vs_selected():
@@ -339,8 +336,8 @@ class UserMenu(Menu):
         while True:
             selected_option = Menu().get_menu("COMPARE",
               [
-                  "Compare running-config to selected file.",
-                  "Compare startup-config to selected file.",
+                  "Compare running-config to Local Config.",
+                  "Compare startup-config to Local Config.",
                   "Compare running-config to startup-config."
               ],
               "*Enter a value or [r]eturn, [q]uit.\n>>>")
