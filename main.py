@@ -6,7 +6,7 @@
 
 from mini_menu import Menu
 from telnet_device import TeleCisco, remove_telnet_chars
-import os
+import os, uuid
 
 ##################################################################
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
@@ -53,14 +53,79 @@ class UserMenu(Menu):
             # Connection probably terminated.
             print(e)
 
+    @staticmethod
+    def get_path():
+        path = ""
+        while True:
+            path = input("Enter a local path, excluding the file name:")
+            path = path.replace("\\\\", "\\")
+            if not os.path.exists(path):
+                print("Invalid Path!")
+            try:  # Test write permissions of the directory
+                print("Testing write permissions...")
+                path_to_file = path + str(uuid.uuid4())
+                file_tmp = open(path_to_file,'w')
+                file_tmp.close()
+                os.remove(path_to_file)
+            except Exception as e:
+                print("Write issue:",e)
+            else:
+                break
+        return path
+
+    def save_config(self, config_name):
+        config_list = self.tele_instance.ios_fetch_and_store_conf(config_name, "show")
+        print("\n".join(i for i in config_list))
+        self.divider()
+        inpt = input("Save the above config? [y/n]:")
+        if inpt.strip().lower() in ['n', 'no']:
+            return
+        path = self.get_path()
+        unique_path = path + "/" + config_name + "-" + str(uuid.uuid4())  # Random uuid at end to make it unique
+        with open(unique_path, 'w') as file_to_write_to:
+            for line in config_list:
+                file_to_write_to.write(line + "\n")
+            print("Saved at: " + unique_path)
+
+    def save_submenu(self):
+        def save_running():
+            self.save_config("running-config")
+
+        def save_startup():
+            self.save_config("startup-config")
+
+        menu = {
+            1: save_running,
+            2: save_startup,
+        }
+        while True:
+            selected_option = self.get_menu("SAVE",
+            [
+                "Save Current running-config to Local Machine.",
+                "Save Current startup-config to Local Machine."
+            ],
+            "*Enter a value or [r]return, [q]uit.\n>>>")
+            if selected_option == 'r':
+                return
+            if not selected_option:
+                continue
+            try:
+                menu[selected_option]()
+            except KeyError:
+                pass
+            except (ConnectionAbortedError, EOFError) as e:
+                self.tele_instance.connection = None
+                print("\n", e)
+
     def main_menu(self):
         # Displays main menu and gets user input
         menu = {
             1: self.initialize,
-            2: self.compare_submenu,
-            3: self.view_submenu,
-            4: self.update_submenu,
-            5: self.switch_to_commandline
+            2: self.view_submenu,
+            3: self.compare_submenu,
+            4: self.save_submenu,
+            5: self.update_submenu,
+            6: self.switch_to_commandline
         }
         while True:
             connection_status_msg = "Connection: " + (("Connected to " + self.tele_instance.host + ".")
@@ -69,10 +134,11 @@ class UserMenu(Menu):
             selected_option = self.get_menu("MAIN",
             [
                 connection_status_msg,
-                "Compare Configurations.",
                 "View Configurations.",
+                "Compare Configurations.",
+                "Save Configs to Local Machine.",
                 "Update & Replace Configurations.",
-                "Switch to Device Command Line."
+                "Switch to Device Command Line.",
             ],
             "*Enter a value or [q]uit.\n>>>")
             if selected_option == 'r':
@@ -83,7 +149,7 @@ class UserMenu(Menu):
                 menu[selected_option]()
             except KeyError:
                 pass
-            except (ConnectionAbortedError, EOFError) as e:
+            except (ConnectionAbortedError, EOFError, AttributeError) as e:
                 self.tele_instance.connection = None
                 print("\n", e)
 
@@ -282,8 +348,8 @@ class UserMenu(Menu):
     def config_file_selection_prompts(self, config_as_list, abs_path, file_name):
         # Prompt for whether or not file should be used. Prompt for usage of hostname or password from config file
         host_name = find_single_line_value(config_as_list, "hostname")  # Find "hostname" field in file
-        passwd = find_single_line_value(config_as_list, "password")  # Find "password" field in file
-        username = find_single_line_value(config_as_list, "username")  # Find "username" field in file
+        self.tele_instance.password = find_single_line_value(config_as_list, "password")  # Find "password" field in file
+        self.tele_instance.username = find_single_line_value(config_as_list, "username")  # Find "username" field in file
 
         print("\nPATH: " + abs_path + file_name)
         print("HOSTNAME: " + host_name if host_name else "(Hostname not found in file)")
@@ -294,18 +360,9 @@ class UserMenu(Menu):
             self.config_file_path = abs_path
             self.config_file_name = file_name
             if host_name:
-                use_this_host = input("\n*Is the device currently using the hostname '" + host_name + "'? [y/n]:")
+                use_this_host = input("\n*Attempt to connect using the hostname '" + host_name + "'? [y/n]:")
                 if use_this_host.strip().lower() in ["y", "yes"]:
                     self.tele_instance.host = host_name
-            if username:
-                use_this_username = input(
-                    "\n*Username '" + username + "' found in config. Use it for logging in? [y/n]:")
-                if use_this_username.strip().lower() in ["y", "yes"]:
-                    self.tele_instance.username = username
-            if passwd:
-                use_this_pass = input("\n*Password found as plaintext in config. Use it for logging in? [y/n]:")
-                if use_this_pass.strip().lower() in ["y", "yes"]:
-                    self.tele_instance.password = passwd
 
             # Return True, indicating the user wants to use this file.
             return True
@@ -339,12 +396,14 @@ class UserMenu(Menu):
                     self.configs_location = abs_path  # Move dir path here, in case user decides not to use file
             except Exception as e:
                 print("Config path issue:", e, "\nExiting...")
+                input()  # Make sure user can see the error before closing console window
                 quit()
             # Remove CRLF without stripping spaces
             try:
                 local_config = list(remove_telnet_chars(i) for i in open(abs_path + file_name))
             except (UnicodeDecodeError, OSError) as e:
                 print("Bad path:", e)
+                input()  # Make sure user can see the error before closing console window
                 quit()
             except FileNotFoundError as e:
                 print("File selected does not exist:", e)
