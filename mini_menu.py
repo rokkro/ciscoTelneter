@@ -15,6 +15,7 @@ class Menu:
 
     def print_menu(self, head, menu):
         # Print menu, entries, divider
+        print("\n",end='')
         self.header(head)
         for num, entry in enumerate(menu):  # Print entries
             print("[" + str(num + 1) + "] - " + str(entry))
@@ -95,7 +96,8 @@ class Menu:
         while True:
             files = os.listdir("./")  # List files in current dir
             menu_display = self.gen_file_menu(files)
-            user_input = self.get_menu(path, menu_display, "*Enter a file/dir number or [Enter] - go up a dir.\n>>>")
+            print(path)
+            user_input = self.get_menu("FILE SELECTION", menu_display, "*Enter a file/dir number or [Enter] - go up a dir.\n>>>")
             if user_input == '' or user_input == 'r':  # Go up a dir if input is empty/'r'
                 os.chdir("..")
                 continue

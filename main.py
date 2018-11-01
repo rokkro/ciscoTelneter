@@ -377,8 +377,6 @@ class UserMenu(Menu):
                 input("Enter an absolute path to a config file repository or a config file itself:")
 
     def config_file_selection(self):
-        # Display menu, prompt for file selection.
-        print("\n---Configuration File Selection---")
         # Ensure user entered a file
         self.input_configs_location()
         # Keep displaying the menu until the user decides on a file
