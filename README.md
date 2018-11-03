@@ -8,6 +8,7 @@ It uses telnet, so it's not secure. It's intended to be used in a setting where 
 **Features:**
 
  * Skip using TFTP to upload configurations to the device. Only a telnet connection is needed. This script creates a temporary text file on the device using the Tcl shell, then copies that file to either the `running-config` or the `startup-config`.
+ * Skip using TFTP to download configs.
  * View the contents of the `running-config` and the `startup-config` from the device the script has a telnet connection to.
  * List out and compare differences between the `running-config`, `startup-config`, and the selected backup config.
  * Copy the `startup-config` to the `running-config`.
