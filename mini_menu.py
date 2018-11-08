@@ -13,9 +13,10 @@ class Menu:
         print(('-' * int((self.horizontal_len - len(text)) / 2)) + text + (
                     '-' * int((self.horizontal_len - len(text)) / 2)))
 
-    def print_menu(self, head, menu):
+    def print_menu(self, head, menu,pre_new_line=True):
         # Print menu, entries, divider
-        print("\n",end='')
+        if pre_new_line:
+            print("\n",end='')
         self.header(head)
         for num, entry in enumerate(menu):  # Print entries
             print("[" + str(num + 1) + "] - " + str(entry))
@@ -45,7 +46,7 @@ class Menu:
         else:
             return None
 
-    def get_menu(self, head, menu, input_menu):
+    def get_menu(self, head, menu, input_menu, pre_new_line=True):
         # Numbered user input menu
         while True:
             # If no menu entries, don't do anything
@@ -53,7 +54,7 @@ class Menu:
                 print("There doesn't appear to be anything here...")
                 return ''
 
-            self.print_menu(head, menu)
+            self.print_menu(head, menu,pre_new_line)
             current_input = self.update_input_queue(input_menu)
 
             special_key = self.handle_special_input(current_input)

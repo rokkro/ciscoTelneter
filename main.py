@@ -11,7 +11,7 @@ import os, uuid
 ##################################################################
 # PUT THE STARTING DIRECTORY FOR LOCATING CONFIG FILES HERE
 # You have to use forward slashes instead of backslashes on Windows
-CONFIGS_LOCATION = ""
+DEFAULT_CONFIGS_LOCATION = ""
 ##################################################################
 
 
@@ -34,16 +34,16 @@ class UserMenu(Menu):
         # Initial device connection + selection stuff, then show menu interface
         super().__init__()
         self.tele_instance = TeleCisco()
-        self.configs_location = CONFIGS_LOCATION
+        self.configs_location = DEFAULT_CONFIGS_LOCATION
         self.config_file_path = ""
         self.config_file_name = ""
+        self.first_run = True
         self.initialize()
         self.main_menu()
 
     def initialize(self):
         # Clear connection, reprompt for file selection,
         #  connect to device, elevate privileges
-        print("Clearing any existing connections...")
         try:
             self.tele_instance.reset()  # Ensure it's fresh
             self.config_file_selection()
@@ -130,19 +130,23 @@ class UserMenu(Menu):
             6: self.switch_to_commandline
         }
         while True:
+            # Reconnect to program
+            self.divider()
             connection_status_msg = "Connection: " + (("Connected to " + self.tele_instance.host + ".")
-                                        if self.tele_instance.connection else "No Connection Active.")
-            connection_status_msg += "\n    - Selected file: '" + self.config_file_path + self.config_file_name + "'."
+                                                      if self.tele_instance.connection else "No Connection Active.")
+            connection_status_msg += "\nSelected file: '" + self.config_file_path + self.config_file_name + "'."
+            print(connection_status_msg)
+
             selected_option = self.get_menu("MAIN",
             [
-                connection_status_msg,
+                "Reset Program.",
                 "View Configs.",
                 "Compare Configs.",
                 "Save Configs.",
                 "Update Device Configs.",
                 "Switch to Device CLI.",
             ],
-            "*Enter a value or [q]uit.\n>>>")
+            "*Enter a value or [q]uit.\n>>>",False)
             if selected_option == 'r':
                 continue
             if not selected_option:
@@ -372,9 +376,9 @@ class UserMenu(Menu):
             return False
 
     def input_configs_location(self):
-        # If user didn't specify CONFIGS_LOCATION, prompt for it.
+        # If user didn't specify DEFAULT_CONFIGS_LOCATION, prompt for it.
         if not self.configs_location:
-            print("***Change CONFIGS_LOCATION in the script to a config file location!***")
+            print("***Change DEFAULT_CONFIGS_LOCATION in the script to a config file location!***")
             self.configs_location = \
                 input("Enter an absolute path to a config file repository or a config file itself:")
 
@@ -385,7 +389,7 @@ class UserMenu(Menu):
         use_this_file = False
         while not use_this_file:
             try:
-                # If CONFIGS_LOCATION is a directory, spawn a menu, else use that file
+                # If DEFAULT_CONFIGS_LOCATION is a directory, spawn a menu, else use that file
                 if os.path.isdir(self.configs_location):
                     abs_path, file_name = Menu().get_path_menu(self.configs_location)
                     self.configs_location = abs_path  # Move dir path here, in case user decides not to use file
