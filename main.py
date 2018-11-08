@@ -322,10 +322,7 @@ class UserMenu(Menu):
 
         def startup_vs_selected():
             # Prints out differences between these files, separated by line.
-            local_conf_name = self.config_file_name
-            # Avoid cases where both are named "running-config", making it hard to spot diffs
-            if local_conf_name.strip() == "startup-config":
-                local_conf_name = "(local config)"
+            local_conf_name = "(local config)"
             format_list_diffs(current_startup, self.tele_instance.config_file, "startup-config",local_conf_name)
 
         menu = {
