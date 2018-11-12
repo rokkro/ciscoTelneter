@@ -37,7 +37,6 @@ class UserMenu(Menu):
         self.configs_location = DEFAULT_CONFIGS_LOCATION
         self.config_file_path = ""
         self.config_file_name = ""
-        self.first_run = True
         self.config_file_selection()
         self.main_menu()
 
@@ -50,7 +49,10 @@ class UserMenu(Menu):
     def host_connect(self):
         try:
             if self.tele_instance.connection:
-                self.tele_instance.reset()  # Ensure it's fresh
+                self.tele_instance.username = ""
+                self.tele_instance.password = ""
+                self.tele_instance.connection = None
+                self.tele_instance.is_privileged_user = False
             self.tele_instance.telnet_to_device()
             self.tele_instance.ios_login_and_elevate()
         except EOFError as e:
@@ -136,14 +138,14 @@ class UserMenu(Menu):
             4: self.compare_submenu,
             5: self.save_submenu,
             6: self.update_submenu,
-            7: self.switch_to_commandline
+            7: self.switch_to_cli
         }
         while True:
-            # Reconnect to progra
+            path_display = self.config_file_path + self.config_file_name
             selected_option = self.get_menu("MAIN",
             [
-                "Connected host: " + self.tele_instance.host,
-                "Using config file: " + self.config_file_path + self.config_file_name,
+                "Connected host: " + (self.tele_instance.host if (self.tele_instance.host and self.tele_instance.connection) else "(NOT CONNECTED)"),
+                "Using config file: " + (path_display if path_display.strip() else "(NO PATH SELECTED)"),
                 "View Configs.",
                 "Compare Configs.",
                 "Save Configs.",
@@ -182,7 +184,7 @@ class UserMenu(Menu):
         print("\n".join(self.tele_instance.config_file))
         self.divider()
 
-    def switch_to_commandline(self):
+    def switch_to_cli(self):
         print("Switching to command line. You will not be able to return to the program unless you restart it.\n"
               "Press Enter several times to see the command line.")
         self.tele_instance.connection.interact()

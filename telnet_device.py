@@ -250,13 +250,6 @@ class TeleCisco:
         self.connection.read_until(b"\r", timeout=self.READ_TIMEOUT)  # Make written command work
         print("File deleted.")
 
-    def reset(self):
-        # Reset everything but the host name
-        self.username = ""
-        self.password = ""
-        self.connection = None
-        self.is_privileged_user = False
-
     def telnet_to_device(self):
         # Create telnet connection to host
         print("\n---Device Connection---")
