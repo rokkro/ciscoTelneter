@@ -54,9 +54,9 @@ class TeleCisco:
         # Read a file (file_name) using the view_command. Store every line of that file in store_list
         # view_command should be "more" for files in flash, and "show" for startup-config, running-config, etc.
         store_list = []
-        print("\n---Reading file", file_name + "---")
         if not self.is_privileged_user:
             self.ios_login_and_elevate()
+        print("\n---Reading file", file_name + "---")
         self.ios_change_term_length(0)
         self.connection.write((view_command + " " + file_name).encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
@@ -119,7 +119,6 @@ class TeleCisco:
         if not self.connection:
             print("Not connected to device! Attempting connection...")
             self.telnet_to_device()
-            return
         print("\n---CLI Login---")
         print("Preparing login...")
         while True:
@@ -158,10 +157,12 @@ class TeleCisco:
         # This file can then be copied to the startup-config
         # This is done instead of using the configuration mode, as we want to add a fresh config file and not
         #   have to worry about leftover settings being retained.
+        if not self.config_file:
+            print("No local config file assigned!\nFile could not be copied to device.")
+            return
         if not self.connection:
             print("Not connected to device! Attempting connection...")
             self.telnet_to_device()
-            return
         print("\n---Tclsh File Creation---")
         if not self.is_privileged_user:
             self.ios_login_and_elevate()
@@ -216,7 +217,6 @@ class TeleCisco:
         if not self.connection:
             print("Not connected to device! Attempting connection...")
             self.telnet_to_device()
-            return
         print("\n---Reloading device---")
         self.connection.write("reload".encode("ascii") + b"\n")
         self.connection.read_until(b"\n", timeout=self.READ_TIMEOUT)  # Make written command work
@@ -263,6 +263,7 @@ class TeleCisco:
         except (socket.gaierror, socket.timeout) as e:
             # Kill connection when it fails
             print("Connection to host failed:", e)
+            self.host = ""
             self.connection = None
             return
         print("Connection Succeeded!")

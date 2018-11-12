@@ -170,6 +170,10 @@ class UserMenu(Menu):
         # This file is later deleted from the device after copying.
         self.divider()
         config_as_list = self.tele_instance.ios_fetch_and_store_conf(self.tele_instance.TEMP_FILE_NAME, "more")
+        print(config_as_list)
+        if not config_as_list:
+            print("Config file was either empty, not found, or not read properly.")
+            return True  # Indicate not safe to copy
         print("(The file should be displayed below if no errors occurred).")
         print("\n".join(config_as_list))
         self.divider()
@@ -179,6 +183,9 @@ class UserMenu(Menu):
     def view_selected_file(self):
         # Prints content of selected local config file.
         # Does not re-read from a local file, as it's stored as a list.
+        if not self.tele_instance.config_file:
+            print("No config file selected...")
+            return
         self.divider()
         print("(The file should be displayed below if no errors occurred).")
         print("\n".join(self.tele_instance.config_file))
@@ -236,7 +243,9 @@ class UserMenu(Menu):
         def cpy_running():
             # Tells device to copy the local config to the device as a temp file, then copy it to running-config
             self.tele_instance.ios_tclsh()
-            self.view_temp_file()
+            if self.view_temp_file():
+                print("Copy operation canceled.")
+                return  # If temp file viewer indicated it's not safe to copy, then return instead
             if input("\n*Try to copy this config to the running-config? [y/n]:").strip().lower() in ['y', 'yes']:
                 self.tele_instance.ios_copy_to_config(self.tele_instance.TEMP_FILE_NAME, "running-config")
             self.tele_instance.ios_remove_temp_file()
@@ -244,7 +253,9 @@ class UserMenu(Menu):
         def cpy_startup():
             # Tells device to copy the local config to the device as a temp file, then copy it to startup-config
             self.tele_instance.ios_tclsh()
-            self.view_temp_file()
+            if self.view_temp_file():
+                print("Copy operation canceled.")
+                return  # If temp file viewer indicated it's not safe to copy, then return instead
             if input("\n*Try to copy this config to the startup-config? [y/n]:").strip().lower() in ['y', 'yes']:
                 self.tele_instance.ios_copy_to_config(self.tele_instance.TEMP_FILE_NAME, "startup-config")
             self.tele_instance.ios_remove_temp_file()
