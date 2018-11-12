@@ -251,7 +251,7 @@ class TeleCisco:
         print("File deleted.")
 
     def reset(self):
-        self.host = ""
+        # Reset everything but the host name
         self.username = ""
         self.password = ""
         self.connection = None

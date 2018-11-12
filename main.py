@@ -38,20 +38,28 @@ class UserMenu(Menu):
         self.config_file_path = ""
         self.config_file_name = ""
         self.first_run = True
-        self.initialize()
+        self.config_file_selection()
         self.main_menu()
 
-    def initialize(self):
-        # Clear connection, reprompt for file selection,
-        #  connect to device, elevate privileges
+    def change_conf_file(self):
+        self.configs_location = ""
+        self.config_file_path = ""
+        self.config_file_name = ""
+        self.config_file_selection()
+
+    def host_connect(self):
         try:
-            self.tele_instance.reset()  # Ensure it's fresh
-            self.config_file_selection()
+            if self.tele_instance.connection:
+                self.tele_instance.reset()  # Ensure it's fresh
             self.tele_instance.telnet_to_device()
             self.tele_instance.ios_login_and_elevate()
         except EOFError as e:
             # Connection probably terminated.
             print(e)
+
+    def new_host_connection(self):
+        self.tele_instance.host = ""
+        self.host_connect()
 
     @staticmethod
     def get_path():
@@ -122,24 +130,20 @@ class UserMenu(Menu):
     def main_menu(self):
         # Displays main menu and gets user input
         menu = {
-            1: self.initialize,
-            2: self.view_submenu,
-            3: self.compare_submenu,
-            4: self.save_submenu,
-            5: self.update_submenu,
-            6: self.switch_to_commandline
+            1: self.new_host_connection,
+            2: self.change_conf_file,
+            3: self.view_submenu,
+            4: self.compare_submenu,
+            5: self.save_submenu,
+            6: self.update_submenu,
+            7: self.switch_to_commandline
         }
         while True:
-            # Reconnect to program
-            self.divider()
-            connection_status_msg = "Connection: " + (("Connected to " + self.tele_instance.host + ".")
-                                                      if self.tele_instance.connection else "No Connection Active.")
-            connection_status_msg += "\nSelected file: '" + self.config_file_path + self.config_file_name + "'."
-            print(connection_status_msg)
-
+            # Reconnect to progra
             selected_option = self.get_menu("MAIN",
             [
-                "Reset Program.",
+                "Connected host: " + self.tele_instance.host,
+                "Using config file: " + self.config_file_path + self.config_file_name,
                 "View Configs.",
                 "Compare Configs.",
                 "Save Configs.",
@@ -369,7 +373,9 @@ class UserMenu(Menu):
                 use_this_host = input("\n*Attempt to connect using the hostname '" + host_name + "'? [y/n]:")
                 if use_this_host.strip().lower() in ["y", "yes"]:
                     self.tele_instance.host = host_name
-
+                    self.host_connect()
+                elif not self.tele_instance.connection:
+                    self.new_host_connection()
             # Return True, indicating the user wants to use this file.
             return True
         else:
@@ -378,7 +384,6 @@ class UserMenu(Menu):
     def input_configs_location(self):
         # If user didn't specify DEFAULT_CONFIGS_LOCATION, prompt for it.
         if not self.configs_location:
-            print("***Change DEFAULT_CONFIGS_LOCATION in the script to a config file location!***")
             self.configs_location = \
                 input("Enter an absolute path to a config file repository or a config file itself:")
 
