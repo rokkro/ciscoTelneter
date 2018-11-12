@@ -403,17 +403,17 @@ class UserMenu(Menu):
                     file_name = abs_path[abs_path.rfind("\\") + 1:]
                     abs_path = abs_path.replace(file_name, "")
                     self.configs_location = abs_path  # Move dir path here, in case user decides not to use file
+            except ValueError:
+                return
             except Exception as e:
-                print("Config path issue:", e, "\nExiting...")
-                input()  # Make sure user can see the error before closing console window
-                quit()
+                print("Config path issue:", e, "\n")
+                return
             # Remove CRLF without stripping spaces
             try:
                 local_config = list(remove_telnet_chars(i) for i in open(abs_path + file_name))
             except (UnicodeDecodeError, OSError) as e:
                 print("Bad path:", e)
-                input()  # Make sure user can see the error before closing console window
-                quit()
+                return
             except FileNotFoundError as e:
                 print("File selected does not exist:", e)
                 continue

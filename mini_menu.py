@@ -98,10 +98,12 @@ class Menu:
             files = os.listdir("./")  # List files in current dir
             menu_display = self.gen_file_menu(files)
             print(path)
-            user_input = self.get_menu("FILE SELECTION", menu_display, "*Enter a file/dir number or [r] - go up a dir.\n>>>")
-            if user_input == '' or user_input == 'r':  # Go up a dir if input is empty/'r'
+            user_input = self.get_menu("FILE SELECTION", menu_display, "*Enter a file/dir number or [Enter] - go up a dir, [r]eturn.\n>>>")
+            if user_input == '':  # Go up a dir if input is empty
                 os.chdir("..")
                 continue
+            elif user_input == 'r':
+                return user_input
             selected = files[user_input - 1]
             if os.path.isdir("./" + selected):
                 os.chdir(selected)
