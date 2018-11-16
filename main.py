@@ -87,6 +87,7 @@ class UserMenu(Menu):
     def save_config(self, config_name):
         config_list = self.tele_instance.ios_fetch_and_store_conf(config_name, "show")
         print("(The file should be displayed below if no errors occurred).")
+        self.divider()
         print("\n".join(i for i in config_list))
         self.divider()
         inpt = input("Save the above config? [y/n]:")
@@ -129,23 +130,33 @@ class UserMenu(Menu):
                 self.tele_instance.connection = None
                 print("\n", e)
 
+    def start_over(self):
+        self.tele_instance.host = ""
+        self.tele_instance.username = ""
+        self.tele_instance.password = ""
+        self.tele_instance.connection = None
+        self.tele_instance.is_privileged_user = False
+        self.config_file_selection()
+
     def main_menu(self):
         # Displays main menu and gets user input
         menu = {
-            1: self.new_host_connection,
-            2: self.change_conf_file,
-            3: self.view_submenu,
-            4: self.compare_submenu,
-            5: self.save_submenu,
-            6: self.update_submenu,
-            7: self.switch_to_cli
+            1: self.start_over,
+            2: self.new_host_connection,
+            3: self.change_conf_file,
+            4: self.view_submenu,
+            5: self.compare_submenu,
+            6: self.save_submenu,
+            7: self.update_submenu,
+            8: self.switch_to_cli
         }
         while True:
             path_display = self.config_file_path + self.config_file_name
             selected_option = self.get_menu("MAIN",
             [
-                "Connected host: " + (self.tele_instance.host if (self.tele_instance.host and self.tele_instance.connection) else "(NOT CONNECTED)"),
-                "Using config file: " + (path_display if path_display.strip() else "(NO PATH SELECTED)"),
+                "Restart with New File & Host.",
+                "Connected Host: " + (self.tele_instance.host if (self.tele_instance.host and self.tele_instance.connection) else "(NOT CONNECTED)"),
+                "Using Config File: " + (path_display if path_display.strip() else "(NO PATH SELECTED)"),
                 "View Configs.",
                 "Compare Configs.",
                 "Save Configs.",
@@ -168,13 +179,12 @@ class UserMenu(Menu):
     def view_temp_file(self):
         # Print out contents of temporary file stored on device.
         # This file is later deleted from the device after copying.
-        self.divider()
         config_as_list = self.tele_instance.ios_fetch_and_store_conf(self.tele_instance.TEMP_FILE_NAME, "more")
-        print(config_as_list)
         if not config_as_list:
             print("Config file was either empty, not found, or not read properly.")
             return True  # Indicate not safe to copy
         print("(The file should be displayed below if no errors occurred).")
+        self.divider()
         print("\n".join(config_as_list))
         self.divider()
         host_name = find_single_line_value(config_as_list, "hostname")
@@ -186,8 +196,8 @@ class UserMenu(Menu):
         if not self.tele_instance.config_file:
             print("No config file selected...")
             return
-        self.divider()
         print("(The file should be displayed below if no errors occurred).")
+        self.divider()
         print("\n".join(self.tele_instance.config_file))
         self.divider()
 
@@ -199,16 +209,16 @@ class UserMenu(Menu):
     def view_run(self):
         # Prints out content of device's current running-config
         config = "\n".join(self.tele_instance.ios_fetch_and_store_conf("running-config", "show"))
-        self.divider()
         print("(The file should be displayed below if no errors occurred).")
+        self.divider()
         print(config)
         self.divider()
 
     def view_startup(self):
         # Prints out content of device's current startup-config
         config = "\n".join(self.tele_instance.ios_fetch_and_store_conf("startup-config", "show"))
-        self.divider()
         print("(The file should be displayed below if no errors occurred).")
+        self.divider()
         print(config)
         self.divider()
 
@@ -430,8 +440,8 @@ class UserMenu(Menu):
             except FileNotFoundError as e:
                 print("File selected does not exist:", e)
                 continue
-            self.divider()
             print("(The file should be displayed below if no errors occurred).")
+            self.divider()
             print("\n".join(local_config))
             self.divider()
             # Ask user if they want to use the file + other prompts
