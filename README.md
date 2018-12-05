@@ -31,13 +31,14 @@ It uses telnet, so it's not secure. It's intended to be used in a setting where 
 **Interface:**
 ```
 ------------------MAIN------------------
-[1] - Connected host: router1
-[2] - Using config file: \\Server\Cisco Configs\router\router1-confg
-[3] - View Configs.
-[4] - Compare Configs.
-[5] - Save Configs.
-[6] - Update Device Configs.
-[7] - Switch to Device CLI.
+[1] - Restart with New File & Host.
+[2] - Connected Host: router1
+[3] - Using Config File: \\Server\Repos\Configs\router1\router1-confg
+[4] - View Configs.
+[5] - Compare Configs.
+[6] - Save Configs.
+[7] - Update Device Configs.
+[8] - Switch to Device CLI.
 ----------------------------------------
 *Enter a value or [q]uit.
 >>>
